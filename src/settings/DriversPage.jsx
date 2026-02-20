@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Table, TableRow, TableCell, TableHead, TableBody } from '@mui/material';
+import {
+  Table, TableRow, TableCell, TableHead, TableBody,
+} from '@mui/material';
 import { useEffectAsync } from '../reactHelper';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import PageLayout from '../common/components/PageLayout';
@@ -42,24 +44,15 @@ const DriversPage = () => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {!loading ? (
-            items.filter(filterByKeyword(searchKeyword)).map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>{item.name}</TableCell>
-                <TableCell>{item.uniqueId}</TableCell>
-                <TableCell className={classes.columnAction} padding="none">
-                  <CollectionActions
-                    itemId={item.id}
-                    editPath="/settings/driver"
-                    endpoint="drivers"
-                    setTimestamp={setTimestamp}
-                  />
-                </TableCell>
-              </TableRow>
-            ))
-          ) : (
-            <TableShimmer columns={3} endAction />
-          )}
+          {!loading ? items.filter(filterByKeyword(searchKeyword)).map((item) => (
+            <TableRow key={item.id}>
+              <TableCell>{item.name}</TableCell>
+              <TableCell>{item.uniqueId}</TableCell>
+              <TableCell className={classes.columnAction} padding="none">
+                <CollectionActions itemId={item.id} editPath="/settings/driver" endpoint="drivers" setTimestamp={setTimestamp} />
+              </TableCell>
+            </TableRow>
+          )) : (<TableShimmer columns={3} endAction />)}
         </TableBody>
       </Table>
       <CollectionFab editPath="/settings/driver" />

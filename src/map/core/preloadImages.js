@@ -3,7 +3,9 @@ import { createTheme } from '@mui/material';
 import { loadImage, prepareIcon } from './mapUtil';
 
 import directionSvg from '../../resources/images/direction.svg';
+import squareSvg from '../../resources/images/square.svg';
 import backgroundSvg from '../../resources/images/background.svg';
+import labelBackgroundSvg from '../../resources/images/label-background.svg';
 import animalSvg from '../../resources/images/icon/animal.svg';
 import bicycleSvg from '../../resources/images/icon/bicycle.svg';
 import boatSvg from '../../resources/images/icon/boat.svg';
@@ -75,22 +77,16 @@ const theme = createTheme({
 export default async () => {
   const background = await loadImage(backgroundSvg);
   mapImages.background = await prepareIcon(background);
+  mapImages['label-background'] = await prepareIcon(await loadImage(labelBackgroundSvg));
   mapImages.direction = await prepareIcon(await loadImage(directionSvg));
-  await Promise.all(
-    Object.keys(mapIcons).map(async (category) => {
-      const results = [];
-      ['info', 'success', 'error', 'neutral'].forEach((color) => {
-        results.push(
-          loadImage(mapIcons[category]).then((icon) => {
-            mapImages[`${category}-${color}`] = prepareIcon(
-              background,
-              icon,
-              theme.palette[color].main,
-            );
-          }),
-        );
-      });
-      await Promise.all(results);
-    }),
-  );
+  mapImages.square = await prepareIcon(await loadImage(squareSvg));
+  await Promise.all(Object.keys(mapIcons).map(async (category) => {
+    const results = [];
+    ['info', 'success', 'error', 'neutral'].forEach((color) => {
+      results.push(loadImage(mapIcons[category]).then((icon) => {
+        mapImages[`${category}-${color}`] = prepareIcon(background, icon, theme.palette[color].main);
+      }));
+    });
+    await Promise.all(results);
+  }));
 };

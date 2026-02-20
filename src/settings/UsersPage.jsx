@@ -1,14 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Table,
-  TableRow,
-  TableCell,
-  TableHead,
-  TableBody,
-  Switch,
-  TableFooter,
-  FormControlLabel,
+  Table, TableRow, TableCell, TableHead, TableBody, Switch, TableFooter, FormControlLabel,
 } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
 import LinkIcon from '@mui/icons-material/Link';
@@ -60,7 +53,7 @@ const UsersPage = () => {
   useEffectAsync(async () => {
     setLoading(true);
     try {
-      const response = await fetchOrThrow('/api/users?excludeAttributes=true');
+      const response = await fetchOrThrow('/api/users');
       setItems(await response.json());
     } finally {
       setLoading(false);
@@ -82,45 +75,36 @@ const UsersPage = () => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {!loading ? (
-            items
-              .filter((u) => temporary || !u.temporary)
-              .filter(filterByKeyword(searchKeyword))
-              .map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell>{item.email}</TableCell>
-                  <TableCell>{formatBoolean(item.administrator, t)}</TableCell>
-                  <TableCell>{formatBoolean(item.disabled, t)}</TableCell>
-                  <TableCell>{formatTime(item.expirationTime, 'date')}</TableCell>
-                  <TableCell className={classes.columnAction} padding="none">
-                    <CollectionActions
-                      itemId={item.id}
-                      editPath="/settings/user"
-                      endpoint="users"
-                      setTimestamp={setTimestamp}
-                      customActions={
-                        manager ? [actionLogin, actionConnections] : [actionConnections]
-                      }
-                    />
-                  </TableCell>
-                </TableRow>
-              ))
-          ) : (
-            <TableShimmer columns={6} endAction />
-          )}
+          {!loading ? items.filter((u) => temporary || !u.temporary).filter(filterByKeyword(searchKeyword)).map((item) => (
+            <TableRow key={item.id}>
+              <TableCell>{item.name}</TableCell>
+              <TableCell>{item.email}</TableCell>
+              <TableCell>{formatBoolean(item.administrator, t)}</TableCell>
+              <TableCell>{formatBoolean(item.disabled, t)}</TableCell>
+              <TableCell>{formatTime(item.expirationTime, 'date')}</TableCell>
+              <TableCell className={classes.columnAction} padding="none">
+                <CollectionActions
+                  itemId={item.id}
+                  editPath="/settings/user"
+                  endpoint="users"
+                  setTimestamp={setTimestamp}
+                  customActions={manager ? [actionLogin, actionConnections] : [actionConnections]}
+                />
+              </TableCell>
+            </TableRow>
+          )) : (<TableShimmer columns={6} endAction />)}
         </TableBody>
         <TableFooter>
           <TableRow>
             <TableCell colSpan={6} align="right">
               <FormControlLabel
-                control={
+                control={(
                   <Switch
                     value={temporary}
                     onChange={(e) => setTemporary(e.target.checked)}
                     size="small"
                   />
-                }
+                )}
                 label={t('userTemporary')}
                 labelPlacement="start"
               />

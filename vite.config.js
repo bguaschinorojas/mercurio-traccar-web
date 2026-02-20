@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react-swc';
+import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
 import { VitePWA } from 'vite-plugin-pwa';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
@@ -8,8 +8,8 @@ export default defineConfig(() => ({
   server: {
     port: 3000,
     proxy: {
-      '/api/socket': 'ws://localhost:8082',
-      '/api': 'http://localhost:8082',
+      '/api/socket': process.env.VITE_SOCKET_URL || 'ws://209.38.67.33:8082',
+      '/api': process.env.VITE_API_URL || 'http://209.38.67.33:8082',
     },
   },
   build: {
@@ -26,9 +26,10 @@ export default defineConfig(() => ({
         globPatterns: ['**/*.{js,css,html,woff,woff2,mp3}'],
       },
       manifest: {
-        short_name: '${title}',
-        name: '${description}',
-        theme_color: '${colorPrimary}',
+        short_name: 'Cruzero',
+        name: 'Cruzero GPS',
+        background_color: '#FFFFFF',
+        theme_color: '#DB5359',
         icons: [
           {
             src: 'pwa-64x64.png',

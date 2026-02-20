@@ -37,13 +37,4 @@ export default {
       enterNextDelay: 500,
     },
   },
-  MuiTableCell: {
-    styleOverrides: {
-      root: ({ theme }) => ({
-        '@media print': {
-          color: theme.palette.alwaysDark.main,
-        },
-      }),
-    },
-  },
 };

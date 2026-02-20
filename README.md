@@ -1,15 +1,23 @@
-# [Traccar Web Interface](https://www.traccar.org)
+# [Cerbero - Plataforma de Rastreo GPS](https://cruzero-gps.com)
 
-## Overview
+## Descripción General
 
-Traccar is open source server for various GPS tracking devices. This repository contains web interface for the Traccar platform. For back-end checkout [main Traccar repository](https://github.com/tananaev/traccar).
+Cerbero es la plataforma web de rastreo GPS desarrollada por **Cruzero GPS SPA**. Esta aplicación proporciona una interfaz moderna y completa para el monitoreo en tiempo real de flotas vehiculares y dispositivos GPS.
 
-The app uses React, Material UI and MapLibre. For more information on how to build it please check the [web app documentation](https://www.traccar.org/build-web-app/).
+Nuestra plataforma está construida sobre tecnología de vanguardia, utilizando React, Material UI y MapLibre para ofrecer una experiencia de usuario excepcional en el seguimiento y gestión de activos móviles.
 
-## Team
+## Características Principales
 
-- Anton Tananaev ([anton@traccar.org](mailto:anton@traccar.org))
-- Andrey Kunitsyn ([andrey@traccar.org](mailto:andrey@traccar.org))
+- 🚗 **Monitoreo en Tiempo Real**: Seguimiento de vehículos y dispositivos GPS en tiempo real
+- 📊 **Reportes Avanzados**: Generación de reportes detallados de rutas, paradas y estadísticas
+- 🗺️ **Mapas Interactivos**: Visualización en mapas con múltiples capas y estilos
+- 🔔 **Alertas y Notificaciones**: Sistema de alertas personalizables para eventos importantes
+- 👥 **Gestión de Usuarios**: Control de acceso y permisos por usuario
+- 📱 **Interfaz Responsiva**: Optimizada para dispositivos móviles y de escritorio
+
+## Equipo de Desarrollo
+
+- **Cruzero GPS SPA** - Desarrollo y mantenimiento de la plataforma
 
 ## License
 

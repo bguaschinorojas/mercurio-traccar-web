@@ -1,16 +1,10 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import {
-  Table,
-  TableRow,
-  TableCell,
-  TableHead,
-  TableBody,
-  Button,
-  TableFooter,
-  FormControlLabel,
-  Switch,
+  Table, TableRow, TableCell, TableHead, TableBody, Button, TableFooter, FormControlLabel, Switch,
 } from '@mui/material';
 import LinkIcon from '@mui/icons-material/Link';
 import { useTheme } from '@mui/material/styles';
@@ -22,15 +16,12 @@ import CollectionFab from './components/CollectionFab';
 import CollectionActions from './components/CollectionActions';
 import TableShimmer from '../common/components/TableShimmer';
 import SearchHeader, { filterByKeyword } from './components/SearchHeader';
-import { formatAddress, formatStatus, formatTime } from '../common/util/formatter';
+import { formatTime } from '../common/util/formatter';
 import { useDeviceReadonly, useManager } from '../common/util/permissions';
-import { usePreference } from '../common/util/preferences';
 import useSettingsStyles from './common/useSettingsStyles';
 import DeviceUsersValue from './components/DeviceUsersValue';
 import usePersistedState from '../common/util/usePersistedState';
 import fetchOrThrow from '../common/util/fetchOrThrow';
-import AddressValue from '../common/components/AddressValue';
-import exportExcel from '../common/util/exportExcel';
 
 const DevicesPage = () => {
   const { classes } = useSettingsStyles();
@@ -42,9 +33,6 @@ const DevicesPage = () => {
 
   const manager = useManager();
   const deviceReadonly = useDeviceReadonly();
-  const coordinateFormat = usePreference('coordinateFormat');
-
-  const positions = useSelector((state) => state.session.positions);
 
   const [timestamp, setTimestamp] = useState(Date.now());
   const [items, setItems] = useState([]);
@@ -72,15 +60,45 @@ const DevicesPage = () => {
       [t('deviceModel')]: item.model,
       [t('deviceContact')]: item.contact,
       [t('userExpirationTime')]: formatTime(item.expirationTime, 'date'),
-      [t('deviceStatus')]: formatStatus(item.status, t),
-      [t('deviceLastUpdate')]: formatTime(item.lastUpdate, 'minutes'),
-      [t('positionAddress')]: positions[item.id]
-        ? formatAddress(positions[item.id], coordinateFormat)
-        : '',
     }));
-    const sheets = new Map();
-    sheets.set(t('deviceTitle'), data);
-    await exportExcel(t('deviceTitle'), 'devices.xlsx', sheets, theme);
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet(t('deviceTitle'));
+    const headers = Object.keys(data[0]);
+
+    const titleRow = worksheet.addRow([t('deviceTitle')]);
+    worksheet.mergeCells(1, 1, 1, headers.length);
+    titleRow.font = { bold: true };
+
+    const border = {
+      top: { style: 'thin' },
+      left: { style: 'thin' },
+      bottom: { style: 'thin' },
+      right: { style: 'thin' },
+    };
+    const headerRow = worksheet.addRow(headers);
+    headerRow.eachCell((cell) => {
+      cell.border = border;
+      cell.font = {};
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: `FF${theme.palette.primary.main.replace('#', '').toUpperCase()}` },
+      };
+    });
+    data.forEach((item) => {
+      const row = worksheet.addRow(headers.map((h) => item[h]));
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.border = border;
+        cell.font = {};
+      });
+    });
+
+    const blob = new Blob(
+      [await workbook.xlsx.writeBuffer()],
+      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+    );
+    saveAs(blob, 'devices.xlsx');
   };
 
   const actionConnections = {
@@ -103,68 +121,48 @@ const DevicesPage = () => {
             <TableCell>{t('deviceModel')}</TableCell>
             <TableCell>{t('deviceContact')}</TableCell>
             <TableCell>{t('userExpirationTime')}</TableCell>
-            <TableCell>{t('positionAddress')}</TableCell>
             {manager && <TableCell>{t('settingsUsers')}</TableCell>}
             <TableCell className={classes.columnAction} />
           </TableRow>
         </TableHead>
         <TableBody>
-          {!loading ? (
-            items.filter(filterByKeyword(searchKeyword)).map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>{item.name}</TableCell>
-                <TableCell>{item.uniqueId}</TableCell>
-                <TableCell>{item.groupId ? groups[item.groupId]?.name : null}</TableCell>
-                <TableCell>{item.phone}</TableCell>
-                <TableCell>{item.model}</TableCell>
-                <TableCell>{item.contact}</TableCell>
-                <TableCell>{formatTime(item.expirationTime, 'date')}</TableCell>
-                <TableCell>
-                  {positions[item.id] && (
-                    <AddressValue
-                      latitude={positions[item.id].latitude}
-                      longitude={positions[item.id].longitude}
-                      originalAddress={positions[item.id]?.address}
-                    />
-                  )}
-                </TableCell>
-                {manager && (
-                  <TableCell>
-                    <DeviceUsersValue deviceId={item.id} />
-                  </TableCell>
-                )}
-                <TableCell className={classes.columnAction} padding="none">
-                  <CollectionActions
-                    itemId={item.id}
-                    editPath="/settings/device"
-                    endpoint="devices"
-                    setTimestamp={setTimestamp}
-                    customActions={[actionConnections]}
-                    readonly={deviceReadonly}
-                  />
-                </TableCell>
-              </TableRow>
-            ))
-          ) : (
-            <TableShimmer columns={manager ? 9 : 8} endAction />
-          )}
+          {!loading ? items.filter(filterByKeyword(searchKeyword)).map((item) => (
+            <TableRow key={item.id}>
+              <TableCell>{item.name}</TableCell>
+              <TableCell>{item.uniqueId}</TableCell>
+              <TableCell>{item.groupId ? groups[item.groupId]?.name : null}</TableCell>
+              <TableCell>{item.phone}</TableCell>
+              <TableCell>{item.model}</TableCell>
+              <TableCell>{item.contact}</TableCell>
+              <TableCell>{formatTime(item.expirationTime, 'date')}</TableCell>
+              {manager && <TableCell><DeviceUsersValue deviceId={item.id} /></TableCell>}
+              <TableCell className={classes.columnAction} padding="none">
+                <CollectionActions
+                  itemId={item.id}
+                  editPath="/settings/device"
+                  endpoint="devices"
+                  setTimestamp={setTimestamp}
+                  customActions={[actionConnections]}
+                  readonly={deviceReadonly}
+                />
+              </TableCell>
+            </TableRow>
+          )) : (<TableShimmer columns={manager ? 8 : 7} endAction />)}
         </TableBody>
         <TableFooter>
           <TableRow>
             <TableCell>
-              <Button onClick={handleExport} variant="text">
-                {t('reportExport')}
-              </Button>
+              <Button onClick={handleExport} variant="text">{t('reportExport')}</Button>
             </TableCell>
-            <TableCell colSpan={manager ? 9 : 8} align="right">
+            <TableCell colSpan={manager ? 8 : 7} align="right">
               <FormControlLabel
-                control={
+                control={(
                   <Switch
                     checked={showAll}
                     onChange={(e) => setShowAll(e.target.checked)}
                     size="small"
                   />
-                }
+                )}
                 label={t('notificationAlways')}
                 labelPlacement="start"
                 disabled={!manager}

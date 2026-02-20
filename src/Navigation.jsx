@@ -1,4 +1,7 @@
-import { Route, Routes, useSearchParams } from 'react-router-dom';
+import { useState } from 'react';
+import {
+  Route, Routes, useLocation, useNavigate,
+} from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import MainPage from './main/MainPage';
 import CombinedReportPage from './reports/CombinedReportPage';
@@ -14,7 +17,6 @@ import GroupPage from './settings/GroupPage';
 import PositionPage from './other/PositionPage';
 import NetworkPage from './other/NetworkPage';
 import EventReportPage from './reports/EventReportPage';
-import GeofenceReportPage from './reports/GeofenceReportPage';
 import ReplayPage from './other/ReplayPage';
 import TripReportPage from './reports/TripReportPage';
 import StopReportPage from './reports/StopReportPage';
@@ -36,6 +38,7 @@ import RegisterPage from './login/RegisterPage';
 import ResetPasswordPage from './login/ResetPasswordPage';
 import GeofencesPage from './other/GeofencesPage';
 import GeofencePage from './settings/GeofencePage';
+import useQuery from './common/util/useQuery';
 import { useEffectAsync } from './reactHelper';
 import { devicesActions } from './store';
 import EventPage from './other/EventPage';
@@ -59,56 +62,50 @@ import { generateLoginToken } from './common/components/NativeInterface';
 import { useLocalization } from './common/components/LocalizationProvider';
 import fetchOrThrow from './common/util/fetchOrThrow';
 import AuditPage from './reports/AuditPage';
+import ReportsHomePage from './reports/ReportsHomePage';
+import ViajesReportPage from './reports/ViajesReportPage';
 
 const Navigation = () => {
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { setLocalLanguage } = useLocalization();
 
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [redirectsHandled, setRedirectsHandled] = useState(false);
 
-  const hasQueryParams = ['locale', 'token', 'uniqueId', 'openid'].some((key) =>
-    searchParams.has(key),
-  );
+  const { pathname } = useLocation();
+  const query = useQuery();
 
   useEffectAsync(async () => {
-    if (!hasQueryParams) {
-      return;
+    if (query.get('locale')) {
+      setLocalLanguage(query.get('locale'));
     }
-
-    const newParams = new URLSearchParams(searchParams);
-
-    if (searchParams.has('locale')) {
-      setLocalLanguage(searchParams.get('locale'));
-      newParams.delete('locale');
-    }
-
-    if (searchParams.has('token')) {
-      const token = searchParams.get('token');
+    if (query.get('token')) {
+      const token = query.get('token');
       await fetch(`/api/session?token=${encodeURIComponent(token)}`);
-      newParams.delete('token');
-    }
-
-    if (searchParams.has('uniqueId')) {
-      const response = await fetchOrThrow(`/api/devices?uniqueId=${searchParams.get('uniqueId')}`);
+      navigate(pathname, { replace: true });
+    } else if (pathname == '/' && query.get('deviceId')) {
+      const deviceId = query.get('deviceId');
+      const response = await fetchOrThrow(`/api/devices?uniqueId=${deviceId}`);
       const items = await response.json();
       if (items.length > 0) {
         dispatch(devicesActions.selectId(items[0].id));
       }
-      newParams.delete('uniqueId');
-    }
-
-    if (searchParams.has('openid')) {
-      if (searchParams.get('openid') === 'success') {
+      navigate('/', { replace: true });
+    } else if (query.get('eventId')) {
+      const eventId = parseInt(query.get('eventId'), 10);
+      navigate(`/event/${eventId}`, { replace: true });
+    } else if (query.get('openid')) {
+      if (query.get('openid') === 'success') {
         generateLoginToken();
       }
-      newParams.delete('openid');
+      navigate('/', { replace: true });
+    } else {
+      setRedirectsHandled(true);
     }
+  }, [query]);
 
-    setSearchParams(newParams, { replace: true });
-  }, [hasQueryParams, searchParams, setSearchParams]);
-
-  if (hasQueryParams) {
-    return <Loader />;
+  if (!redirectsHandled) {
+    return (<Loader />);
   }
   return (
     <Routes>
@@ -169,10 +166,11 @@ const Navigation = () => {
         </Route>
 
         <Route path="reports">
+          <Route index element={<ReportsHomePage />} />
+          <Route path="viajes" element={<ViajesReportPage />} />
           <Route path="combined" element={<CombinedReportPage />} />
           <Route path="chart" element={<ChartReportPage />} />
           <Route path="events" element={<EventReportPage />} />
-          <Route path="geofences" element={<GeofenceReportPage />} />
           <Route path="route" element={<PositionsReportPage />} />
           <Route path="stops" element={<StopReportPage />} />
           <Route path="summary" element={<SummaryReportPage />} />

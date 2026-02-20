@@ -1,10 +1,29 @@
 import { useId, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useTheme } from '@mui/material/styles';
-import { map } from '../core/MapView';
+import { map } from '../core/mapInstance';
 import { useAttributePreference } from '../../common/util/preferences';
 
-const MapLiveRoutes = ({ deviceIds }) => {
+const buildTrailSegments = (coordinates, maxOpacity) => {
+  if (!coordinates || coordinates.length < 2) {
+    return [];
+  }
+
+  const segmentCount = coordinates.length - 1;
+  const minOpacity = Math.max(0.08, maxOpacity * 0.18);
+
+  return Array.from({ length: segmentCount }, (_, index) => {
+    const progress = segmentCount === 1 ? 1 : index / (segmentCount - 1);
+    const opacity = minOpacity + progress * (maxOpacity - minOpacity);
+    return {
+      coordinates: [coordinates[index], coordinates[index + 1]],
+      opacity,
+      sortKey: index,
+    };
+  });
+};
+
+const MapLiveRoutes = () => {
   const id = useId();
 
   const theme = useTheme();
@@ -16,7 +35,7 @@ const MapLiveRoutes = ({ deviceIds }) => {
 
   const history = useSelector((state) => state.session.history);
 
-  const mapLineWidth = useAttributePreference('mapLineWidth', 2);
+  const mapLineWidth = useAttributePreference('mapLineWidth', 5);
   const mapLineOpacity = useAttributePreference('mapLineOpacity', 1);
 
   useEffect(() => {
@@ -24,11 +43,8 @@ const MapLiveRoutes = ({ deviceIds }) => {
       map.addSource(id, {
         type: 'geojson',
         data: {
-          type: 'Feature',
-          geometry: {
-            type: 'LineString',
-            coordinates: [],
-          },
+          type: 'FeatureCollection',
+          features: [],
         },
       });
       map.addLayer({
@@ -38,6 +54,7 @@ const MapLiveRoutes = ({ deviceIds }) => {
         layout: {
           'line-join': 'round',
           'line-cap': 'round',
+          'line-sort-key': ['get', 'sortKey'],
         },
         paint: {
           'line-color': ['get', 'color'],
@@ -60,29 +77,32 @@ const MapLiveRoutes = ({ deviceIds }) => {
 
   useEffect(() => {
     if (type !== 'none') {
-      const visibleIds = deviceIds
+      const deviceIds = Object.values(devices)
+        .map((device) => device.id)
         .filter((id) => (type === 'selected' ? id === selectedDeviceId : true))
-        .filter((id) => history.hasOwnProperty(id))
-        .filter((id) => devices[id]);
+        .filter((id) => history.hasOwnProperty(id));
 
       map.getSource(id)?.setData({
         type: 'FeatureCollection',
-        features: visibleIds.map((deviceId) => ({
-          type: 'Feature',
-          geometry: {
-            type: 'LineString',
-            coordinates: history[deviceId],
-          },
-          properties: {
-            color:
-              devices[deviceId]?.attributes?.['web.reportColor'] || theme.palette.geometry.main,
-            width: mapLineWidth,
-            opacity: mapLineOpacity,
-          },
-        })),
+        features: deviceIds.flatMap((deviceId) => {
+          const color = devices[deviceId].attributes['web.reportColor'] || theme.palette.geometry.main;
+          return buildTrailSegments(history[deviceId], mapLineOpacity).map((segment) => ({
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: segment.coordinates,
+            },
+            properties: {
+              color,
+              width: mapLineWidth,
+              opacity: segment.opacity,
+              sortKey: segment.sortKey,
+            },
+          }));
+        }),
       });
     }
-  }, [theme, type, devices, selectedDeviceId, history, deviceIds]);
+  }, [theme, type, devices, selectedDeviceId, history, mapLineWidth, mapLineOpacity]);
 
   return null;
 };

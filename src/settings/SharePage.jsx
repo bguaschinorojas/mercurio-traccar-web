@@ -19,22 +19,40 @@ import { useCatchCallback } from '../reactHelper';
 import useSettingsStyles from './common/useSettingsStyles';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 
+const cruPalette = {
+  primary: '#DB5359',
+  accent: '#EA9A9E',
+  base: '#FFFFFF',
+};
+
+const primaryButtonSx = {
+  textTransform: 'none',
+  fontSize: '13px',
+  fontWeight: 600,
+  backgroundColor: cruPalette.primary,
+  color: cruPalette.base,
+  '&:hover': {
+    backgroundColor: cruPalette.accent,
+  },
+};
+
 const SharePage = () => {
   const navigate = useNavigate();
   const { classes } = useSettingsStyles();
   const t = useTranslation();
 
   const { id } = useParams();
-
   const device = useSelector((state) => state.devices.items[id]);
 
-  const [expiration, setExpiration] = useState(
-    dayjs().add(1, 'week').locale('en').format('YYYY-MM-DD'),
-  );
-  const [link, setLink] = useState();
+  const [expiration, setExpiration] = useState(dayjs().add(1, 'week').locale('en').format('YYYY-MM-DD'));
+  const [link, setLink] = useState('');
 
   const handleShare = useCatchCallback(async () => {
     const expirationTime = dayjs(expiration).toISOString();
+    if (!id) {
+      setLink('');
+      return;
+    }
     const response = await fetchOrThrow('/api/devices/share', {
       method: 'POST',
       body: new URLSearchParams(`deviceId=${id}&expiration=${expirationTime}`),
@@ -48,17 +66,28 @@ const SharePage = () => {
       <Container maxWidth="xs" className={classes.container}>
         <Accordion defaultExpanded>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1">{t('sharedRequired')}</Typography>
+            <Typography variant="subtitle1">
+              {t('sharedRequired')}
+            </Typography>
           </AccordionSummary>
           <AccordionDetails className={classes.details}>
-            <TextField value={device.name} label={t('sharedDevice')} disabled />
+            <TextField
+              value={device?.name || ''}
+              label={t('sharedDevice')}
+              disabled
+            />
             <TextField
               label={t('userExpirationTime')}
               type="date"
               value={expiration}
               onChange={(e) => setExpiration(e.target.value)}
             />
-            <Button variant="outlined" color="primary" onClick={handleShare}>
+            <Button
+              variant="contained"
+              sx={primaryButtonSx}
+              onClick={handleShare}
+              disabled={!device}
+            >
               {t('reportShow')}
             </Button>
             <TextField
@@ -72,7 +101,12 @@ const SharePage = () => {
           </AccordionDetails>
         </Accordion>
         <div className={classes.buttons}>
-          <Button type="button" color="primary" variant="outlined" onClick={() => navigate(-1)}>
+          <Button
+            type="button"
+            color="primary"
+            variant="outlined"
+            onClick={() => navigate(-1)}
+          >
             {t('sharedCancel')}
           </Button>
           <Button

@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 
-import { Typography, AppBar, Toolbar, IconButton } from '@mui/material';
+import {
+  Typography, AppBar, Toolbar, IconButton,
+} from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useEffectAsync } from '../reactHelper';
@@ -40,20 +42,16 @@ const EventPage = () => {
   const [position, setPosition] = useState();
   const [showCard, setShowCard] = useState(false);
 
-  const formatType = (event) =>
-    formatNotificationTitle(t, {
-      type: event.type,
-      attributes: {
-        alarms: event.attributes.alarm,
-      },
-    });
-
-  const onMarkerClick = useCallback(
-    (positionId) => {
-      setShowCard(Boolean(positionId));
+  const formatType = (event) => formatNotificationTitle(t, {
+    type: event.type,
+    attributes: {
+      alarms: event.attributes.alarm,
     },
-    [setShowCard],
-  );
+  });
+
+  const onMarkerClick = useCallback((positionId) => {
+    setShowCard(Boolean(positionId));
+  }, [setShowCard]);
 
   useEffectAsync(async () => {
     if (id) {
@@ -85,13 +83,7 @@ const EventPage = () => {
       <div className={classes.mapContainer}>
         <MapView>
           <MapGeofence />
-          {position && (
-            <MapPositions
-              positions={[position]}
-              onMarkerClick={onMarkerClick}
-              titleField="fixTime"
-            />
-          )}
+          {position && <MapPositions positions={[position]} onMarkerClick={onMarkerClick} titleField="fixTime" />}
         </MapView>
         <MapScale />
         {position && <MapCamera latitude={position.latitude} longitude={position.longitude} />}

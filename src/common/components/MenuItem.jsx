@@ -8,12 +8,24 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const MenuItem = ({ title, link, icon, selected }) => {
+const MenuItem = ({
+  title,
+  link,
+  icon,
+  selected,
+  className,
+  showIcon = true,
+  primaryTypographyProps,
+}) => {
   const { classes } = useStyles();
   return (
-    <ListItemButton key={link} component={Link} to={link} selected={selected}>
-      <ListItemIcon>{icon}</ListItemIcon>
-      <ListItemText primary={title} className={classes.menuItemText} />
+    <ListItemButton key={link} component={Link} to={link} selected={selected} className={className}>
+      {showIcon && icon ? <ListItemIcon>{icon}</ListItemIcon> : null}
+      <ListItemText
+        primary={title}
+        className={classes.menuItemText}
+        primaryTypographyProps={primaryTypographyProps}
+      />
     </ListItemButton>
   );
 };

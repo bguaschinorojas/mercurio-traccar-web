@@ -1,11 +1,6 @@
 import { useSelector } from 'react-redux';
 import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  Link,
+  Button, Dialog, DialogActions, DialogContent, DialogContentText, Link,
 } from '@mui/material';
 import { useTranslation } from './LocalizationProvider';
 
@@ -16,21 +11,16 @@ const TermsDialog = ({ open, onCancel, onAccept }) => {
   const privacyUrl = useSelector((state) => state.session.server.attributes.privacyUrl);
 
   return (
-    <Dialog open={open} onClose={onCancel}>
+    <Dialog
+      open={open}
+      onClose={onCancel}
+    >
       <DialogContent>
         <DialogContentText>
           {t('userTermsPrompt')}
           <ul>
-            <li>
-              <Link href={termsUrl} target="_blank">
-                {t('userTerms')}
-              </Link>
-            </li>
-            <li>
-              <Link href={privacyUrl} target="_blank">
-                {t('userPrivacy')}
-              </Link>
-            </li>
+            <li><Link href={termsUrl} target="_blank">{t('userTerms')}</Link></li>
+            <li><Link href={privacyUrl} target="_blank">{t('userPrivacy')}</Link></li>
           </ul>
         </DialogContentText>
       </DialogContent>

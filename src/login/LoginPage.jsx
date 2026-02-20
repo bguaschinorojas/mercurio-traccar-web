@@ -1,23 +1,10 @@
 import { useEffect, useState } from 'react';
 import {
-  useMediaQuery,
-  Select,
-  MenuItem,
-  FormControl,
-  Button,
-  TextField,
-  Link,
-  Snackbar,
-  IconButton,
-  Tooltip,
-  Box,
-  InputAdornment,
+  useMediaQuery, Button, TextField, Link, Snackbar, IconButton, Tooltip, InputAdornment,
 } from '@mui/material';
-import ReactCountryFlag from 'react-country-flag';
 import { makeStyles } from 'tss-react/mui';
 import CloseIcon from '@mui/icons-material/Close';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
-import QrCode2Icon from '@mui/icons-material/QrCode2';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { useTheme } from '@mui/material/styles';
@@ -28,14 +15,9 @@ import { useLocalization, useTranslation } from '../common/components/Localizati
 import LoginLayout from './LoginLayout';
 import usePersistedState from '../common/util/usePersistedState';
 import {
-  generateLoginToken,
-  handleLoginTokenListeners,
-  nativeEnvironment,
-  nativePostMessage,
+  generateLoginToken, handleLoginTokenListeners, nativeEnvironment, nativePostMessage,
 } from '../common/components/NativeInterface';
-import LogoImage from './LogoImage';
 import { useCatch } from '../reactHelper';
-import QrCodeDialog from '../common/components/QrCodeDialog';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 
 const useStyles = makeStyles()((theme) => ({
@@ -51,6 +33,16 @@ const useStyles = makeStyles()((theme) => ({
     display: 'flex',
     flexDirection: 'column',
     gap: theme.spacing(2),
+  },
+  loginButton: {
+    backgroundColor: '#db545a',
+    '&:hover': {
+      backgroundColor: '#c44951',
+    },
+    '&:disabled': {
+      backgroundColor: theme.palette.action.disabled,
+      color: theme.palette.action.disabled,
+    },
   },
   extraContainer: {
     display: 'flex',
@@ -74,13 +66,6 @@ const LoginPage = () => {
   const theme = useTheme();
   const t = useTranslation();
 
-  const { languages, language, setLocalLanguage } = useLocalization();
-  const languageList = Object.entries(languages).map((values) => ({
-    code: values[0],
-    country: values[1].country,
-    name: values[1].name,
-  }));
-
   const [failed, setFailed] = useState(false);
 
   const [email, setEmail] = usePersistedState('loginEmail', '');
@@ -88,7 +73,6 @@ const LoginPage = () => {
   const [code, setCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showServerTooltip, setShowServerTooltip] = useState(false);
-  const [showQr, setShowQr] = useState(false);
 
   const registrationEnabled = useSelector((state) => state.session.server.registration);
   const languageEnabled = useSelector((state) => {
@@ -98,9 +82,7 @@ const LoginPage = () => {
   const changeEnabled = useSelector((state) => !state.session.server.attributes.disableChange);
   const emailEnabled = useSelector((state) => state.session.server.emailEnabled);
   const openIdEnabled = useSelector((state) => state.session.server.openIdEnabled);
-  const openIdForced = useSelector(
-    (state) => state.session.server.openIdEnabled && state.session.server.openIdForce,
-  );
+  const openIdForced = useSelector((state) => state.session.server.openIdEnabled && state.session.server.openIdForce);
   const [codeEnabled, setCodeEnabled] = useState(false);
 
   const [announcementShown, setAnnouncementShown] = useState(false);
@@ -173,30 +155,9 @@ const LoginPage = () => {
             </Tooltip>
           </IconButton>
         )}
-        {!nativeEnvironment && (
-          <IconButton color="primary" onClick={() => setShowQr(true)}>
-            <QrCode2Icon />
-          </IconButton>
-        )}
-        {languageEnabled && (
-          <FormControl>
-            <Select value={language} onChange={(e) => setLocalLanguage(e.target.value)}>
-              {languageList.map((it) => (
-                <MenuItem key={it.code} value={it.code}>
-                  <Box component="span" sx={{ mr: 1 }}>
-                    <ReactCountryFlag countryCode={it.country} svg />
-                  </Box>
-                  {it.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        )}
+        {/* Botón QR y selector de idioma removidos */}
       </div>
       <div className={classes.container}>
-        {useMediaQuery(theme.breakpoints.down('lg')) && (
-          <LogoImage color={theme.palette.primary.main} />
-        )}
         {!openIdForced && (
           <>
             <TextField
@@ -216,24 +177,23 @@ const LoginPage = () => {
               label={t('userPassword')}
               name="password"
               value={password}
-              type={showPassword ? 'text' : 'password'}
+              type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               autoFocus={!!email}
               onChange={(e) => setPassword(e.target.value)}
-              slotProps={{
-                input: {
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                        size="small"
-                      >
-                        {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                },
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={() => setShowPassword(!showPassword)}
+                      onMouseDown={(e) => e.preventDefault()}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
               }}
             />
             {codeEnabled && (
@@ -253,13 +213,18 @@ const LoginPage = () => {
               variant="contained"
               color="secondary"
               disabled={!email || !password || (codeEnabled && !code)}
+              className={classes.loginButton}
             >
               {t('loginLogin')}
             </Button>
           </>
         )}
         {openIdEnabled && (
-          <Button onClick={() => handleOpenIdLogin()} variant="contained" color="secondary">
+          <Button
+            onClick={() => handleOpenIdLogin()}
+            variant="contained"
+            color="secondary"
+          >
             {t('loginOpenId')}
           </Button>
         )}
@@ -288,15 +253,14 @@ const LoginPage = () => {
           </div>
         )}
       </div>
-      <QrCodeDialog open={showQr} onClose={() => setShowQr(false)} />
       <Snackbar
         open={!!announcement && !announcementShown}
         message={announcement}
-        action={
+        action={(
           <IconButton size="small" color="inherit" onClick={() => setAnnouncementShown(true)}>
             <CloseIcon fontSize="small" />
           </IconButton>
-        }
+        )}
       />
     </LoginLayout>
   );

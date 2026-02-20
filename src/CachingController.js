@@ -1,10 +1,6 @@
 import { useDispatch, useSelector, connect } from 'react-redux';
 import {
-  geofencesActions,
-  groupsActions,
-  driversActions,
-  maintenancesActions,
-  calendarsActions,
+  geofencesActions, groupsActions, driversActions, maintenancesActions, calendarsActions,
 } from './store';
 import { useEffectAsync } from './reactHelper';
 import fetchOrThrow from './common/util/fetchOrThrow';

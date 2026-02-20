@@ -1,6 +1,6 @@
 import { useId, useEffect } from 'react';
 import { useAttributePreference } from '../../common/util/preferences';
-import { map } from '../core/MapView';
+import { map } from '../core/mapInstance';
 import useMapOverlays from './useMapOverlays';
 
 const MapOverlay = () => {
@@ -9,9 +9,7 @@ const MapOverlay = () => {
   const mapOverlays = useMapOverlays();
   const selectedMapOverlay = useAttributePreference('selectedMapOverlay');
 
-  const activeOverlay = mapOverlays
-    .filter((overlay) => overlay.available)
-    .find((overlay) => overlay.id === selectedMapOverlay);
+  const activeOverlay = mapOverlays.filter((overlay) => overlay.available).find((overlay) => overlay.id === selectedMapOverlay);
 
   useEffect(() => {
     if (activeOverlay) {

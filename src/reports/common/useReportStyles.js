@@ -27,9 +27,6 @@ export default makeStyles()((theme) => ({
       display: 'none',
     },
   },
-  columnActionContainer: {
-    display: 'flex',
-  },
   filter: {
     display: 'inline-flex',
     flexWrap: 'wrap',

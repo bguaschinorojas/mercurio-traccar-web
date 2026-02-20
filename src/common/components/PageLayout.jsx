@@ -14,7 +14,7 @@ import { makeStyles } from 'tss-react/mui';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import MenuIcon from '@mui/icons-material/Menu';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from './LocalizationProvider';
 import BackIcon from './BackIcon';
 
@@ -65,21 +65,15 @@ const PageTitle = ({ breadcrumbs }) => {
 
   if (desktop) {
     return (
-      <Typography variant="h6" noWrap>
-        {t(breadcrumbs[0])}
-      </Typography>
+      <Typography variant="h6" noWrap>{t(breadcrumbs[0])}</Typography>
     );
   }
   return (
     <Breadcrumbs>
       {breadcrumbs.slice(0, -1).map((breadcrumb) => (
-        <Typography variant="h6" color="inherit" key={breadcrumb}>
-          {t(breadcrumb)}
-        </Typography>
+        <Typography variant="h6" color="inherit" key={breadcrumb}>{t(breadcrumb)}</Typography>
       ))}
-      <Typography variant="h6" color="textPrimary">
-        {t(breadcrumbs[breadcrumbs.length - 1])}
-      </Typography>
+      <Typography variant="h6" color="textPrimary">{t(breadcrumbs[breadcrumbs.length - 1])}</Typography>
     </Breadcrumbs>
   );
 };
@@ -92,9 +86,7 @@ const PageLayout = ({ menu, breadcrumbs, children }) => {
 
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
 
-  const [searchParams] = useSearchParams();
-
-  const [openDrawer, setOpenDrawer] = useState(!desktop && searchParams.has('menu'));
+  const [openDrawer, setOpenDrawer] = useState(false);
 
   const toggleDrawer = () => setMiniVariant(!miniVariant);
 
@@ -109,28 +101,14 @@ const PageLayout = ({ menu, breadcrumbs, children }) => {
           <Toolbar>
             {!miniVariant && (
               <>
-                <IconButton
-                  color="inherit"
-                  edge="start"
-                  sx={{ mr: 2 }}
-                  onClick={() => navigate('/')}
-                >
+                <IconButton color="inherit" edge="start" sx={{ mr: 2 }} onClick={() => navigate('/')}>
                   <BackIcon />
                 </IconButton>
                 <PageTitle breadcrumbs={breadcrumbs} />
               </>
             )}
-            <IconButton
-              color="inherit"
-              edge="start"
-              sx={{ ml: miniVariant ? -2 : 'auto' }}
-              onClick={toggleDrawer}
-            >
-              {miniVariant !== (theme.direction === 'rtl') ? (
-                <ChevronRightIcon />
-              ) : (
-                <ChevronLeftIcon />
-              )}
+            <IconButton color="inherit" edge="start" sx={{ ml: miniVariant ? -2 : 'auto' }} onClick={toggleDrawer}>
+              {(miniVariant !== (theme.direction === 'rtl')) ? <ChevronRightIcon /> : <ChevronLeftIcon />}
             </IconButton>
           </Toolbar>
           <Divider />
@@ -149,12 +127,7 @@ const PageLayout = ({ menu, breadcrumbs, children }) => {
       {!desktop && (
         <AppBar className={classes.mobileToolbar} position="static" color="inherit">
           <Toolbar>
-            <IconButton
-              color="inherit"
-              edge="start"
-              sx={{ mr: 2 }}
-              onClick={() => setOpenDrawer(true)}
-            >
+            <IconButton color="inherit" edge="start" sx={{ mr: 2 }} onClick={() => setOpenDrawer(true)}>
               <MenuIcon />
             </IconButton>
             <PageTitle breadcrumbs={breadcrumbs} />
@@ -163,7 +136,7 @@ const PageLayout = ({ menu, breadcrumbs, children }) => {
       )}
       <div className={classes.content}>{children}</div>
     </div>
-  );
+  )
 };
 
 export default PageLayout;

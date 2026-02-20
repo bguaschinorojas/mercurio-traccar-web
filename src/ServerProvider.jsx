@@ -6,7 +6,9 @@ import { useEffectAsync } from './reactHelper';
 import { sessionActions } from './store';
 import Loader from './common/components/Loader';
 
-const ServerProvider = ({ children }) => {
+const ServerProvider = ({
+  children,
+}) => {
   const dispatch = useDispatch();
 
   const initialized = useSelector((state) => !!state.session.server);
@@ -32,18 +34,18 @@ const ServerProvider = ({ children }) => {
     return (
       <Alert
         severity="error"
-        action={
+        action={(
           <IconButton color="inherit" size="small" onClick={() => setError(null)}>
             <ReplayIcon fontSize="inherit" />
           </IconButton>
-        }
+        )}
       >
         {error}
       </Alert>
     );
   }
   if (!initialized) {
-    return <Loader />;
+    return (<Loader />);
   }
   return children;
 };

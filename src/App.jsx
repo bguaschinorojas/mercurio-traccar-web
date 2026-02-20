@@ -8,7 +8,6 @@ import CachingController from './CachingController';
 import { useCatch, useEffectAsync } from './reactHelper';
 import { sessionActions } from './store';
 import UpdateController from './UpdateController';
-import MotionController from './main/MotionController';
 import TermsDialog from './common/components/TermsDialog';
 import Loader from './common/components/Loader';
 import fetchOrThrow from './common/util/fetchOrThrow';
@@ -62,17 +61,22 @@ const App = () => {
   }, []);
 
   if (user == null) {
-    return <Loader />;
+    return (<Loader />);
   }
   if (termsUrl && !user.attributes.termsAccepted) {
-    return <TermsDialog open onCancel={() => navigate('/login')} onAccept={() => acceptTerms()} />;
+    return (
+      <TermsDialog
+        open
+        onCancel={() => navigate('/login')}
+        onAccept={() => acceptTerms()}
+      />
+    );
   }
   return (
     <>
       <SocketController />
       <CachingController />
       <UpdateController />
-      <MotionController />
       <div className={classes.page}>
         <Outlet />
       </div>

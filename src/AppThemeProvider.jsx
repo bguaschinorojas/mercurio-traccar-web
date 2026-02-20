@@ -30,7 +30,9 @@ const AppThemeProvider = ({ children }) => {
 
   return (
     <CacheProvider value={cache[direction]}>
-      <ThemeProvider theme={themeInstance}>{children}</ThemeProvider>
+      <ThemeProvider theme={themeInstance}>
+        {children}
+      </ThemeProvider>
     </CacheProvider>
   );
 };

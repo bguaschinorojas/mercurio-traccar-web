@@ -28,12 +28,14 @@ const UserConnectionsPage = () => {
       <Container maxWidth="xs" className={classes.container}>
         <Accordion defaultExpanded>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1">{t('sharedConnections')}</Typography>
+            <Typography variant="subtitle1">
+              {t('sharedConnections')}
+            </Typography>
           </AccordionSummary>
           <AccordionDetails className={classes.details}>
             <LinkField
-              endpointAll="/api/devices?all=true&excludeAttributes=true"
-              endpointLinked={`/api/devices?userId=${id}&excludeAttributes=true`}
+              endpointAll="/api/devices?all=true"
+              endpointLinked={`/api/devices?userId=${id}`}
               baseId={id}
               keyBase="userId"
               keyLink="deviceId"
@@ -74,8 +76,8 @@ const UserConnectionsPage = () => {
               label={t('sharedCalendars')}
             />
             <LinkField
-              endpointAll="/api/users?all=true&excludeAttributes=true"
-              endpointLinked={`/api/users?userId=${id}&excludeAttributes=true`}
+              endpointAll="/api/users?all=true"
+              endpointLinked={`/api/users?userId=${id}`}
               baseId={id}
               keyBase="userId"
               keyLink="managedUserId"

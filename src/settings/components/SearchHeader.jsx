@@ -2,8 +2,7 @@ import { TextField, useTheme, useMediaQuery } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 
-export const filterByKeyword = (keyword) => (item) =>
-  !keyword || JSON.stringify(item).toLowerCase().includes(keyword.toLowerCase());
+export const filterByKeyword = (keyword) => (item) => !keyword || JSON.stringify(item).toLowerCase().includes(keyword.toLowerCase());
 
 const useStyles = makeStyles()((theme) => ({
   header: {
@@ -32,9 +31,7 @@ const SearchHeader = ({ keyword, setKeyword }) => {
         onChange={(e) => setKeyword(e.target.value)}
       />
     </div>
-  ) : (
-    ''
-  );
+  ) : '';
 };
 
 export default SearchHeader;

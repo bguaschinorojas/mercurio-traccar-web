@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { IconButton, Menu, MenuItem, useMediaQuery, useTheme } from '@mui/material';
+import {
+  IconButton, Menu, MenuItem, useMediaQuery, useTheme,
+} from '@mui/material';
 import Tooltip from '@mui/material/Tooltip';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
@@ -16,12 +18,7 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const CollectionActions = ({
-  itemId,
-  editPath,
-  endpoint,
-  setTimestamp,
-  customActions,
-  readonly,
+  itemId, editPath, endpoint, setTimestamp, customActions, readonly,
 }) => {
   const theme = useTheme();
   const { classes } = useStyles();
@@ -63,12 +60,9 @@ const CollectionActions = ({
             <MoreVertIcon fontSize="small" />
           </IconButton>
           <Menu open={!!menuAnchorEl} anchorEl={menuAnchorEl} onClose={() => setMenuAnchorEl(null)}>
-            {customActions &&
-              customActions.map((action) => (
-                <MenuItem onClick={() => handleCustom(action)} key={action.key}>
-                  {action.title}
-                </MenuItem>
-              ))}
+            {customActions && customActions.map((action) => (
+              <MenuItem onClick={() => handleCustom(action)} key={action.key}>{action.title}</MenuItem>
+            ))}
             {!readonly && (
               <>
                 {editPath && <MenuItem onClick={handleEdit}>{t('sharedEdit')}</MenuItem>}
@@ -79,14 +73,13 @@ const CollectionActions = ({
         </>
       ) : (
         <div className={classes.row}>
-          {customActions &&
-            customActions.map((action) => (
-              <Tooltip title={action.title} key={action.key}>
-                <IconButton size="small" onClick={() => handleCustom(action)}>
-                  {action.icon}
-                </IconButton>
-              </Tooltip>
-            ))}
+          {customActions && customActions.map((action) => (
+            <Tooltip title={action.title} key={action.key}>
+              <IconButton size="small" onClick={() => handleCustom(action)}>
+                {action.icon}
+              </IconButton>
+            </Tooltip>
+          ))}
           {!readonly && (
             <>
               {editPath && (
@@ -105,13 +98,7 @@ const CollectionActions = ({
           )}
         </div>
       )}
-      <RemoveDialog
-        style={{ transform: 'none' }}
-        open={removing}
-        endpoint={endpoint}
-        itemId={itemId}
-        onResult={handleRemoveResult}
-      />
+      <RemoveDialog style={{ transform: 'none' }} open={removing} endpoint={endpoint} itemId={itemId} onResult={handleRemoveResult} />
     </>
   );
 };

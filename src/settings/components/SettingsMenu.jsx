@@ -1,23 +1,26 @@
-import { Divider, List } from '@mui/material';
-import TuneIcon from '@mui/icons-material/Tune';
-import DrawIcon from '@mui/icons-material/Draw';
+import {
+  Divider, List,
+} from '@mui/material';
+import SettingsIcon from '@mui/icons-material/Settings';
+import CreateIcon from '@mui/icons-material/Create';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import FolderIcon from '@mui/icons-material/Folder';
 import PersonIcon from '@mui/icons-material/Person';
-import SettingsIcon from '@mui/icons-material/Settings';
+import StorageIcon from '@mui/icons-material/Storage';
 import BuildIcon from '@mui/icons-material/Build';
 import PeopleIcon from '@mui/icons-material/People';
 import TodayIcon from '@mui/icons-material/Today';
-import SendIcon from '@mui/icons-material/Send';
-import DnsIcon from '@mui/icons-material/Dns';
+import PublishIcon from '@mui/icons-material/Publish';
+import SmartphoneIcon from '@mui/icons-material/Smartphone';
 import HelpIcon from '@mui/icons-material/Help';
 import PaymentIcon from '@mui/icons-material/Payment';
 import CampaignIcon from '@mui/icons-material/Campaign';
-import CalculateIcon from '@mui/icons-material/Calculate';
 import { useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useTranslation } from '../../common/components/LocalizationProvider';
-import { useAdministrator, useManager, useRestriction } from '../../common/util/permissions';
+import {
+  useAdministrator, useManager, useRestriction,
+} from '../../common/util/permissions';
 import useFeatures from '../../common/util/useFeatures';
 import MenuItem from '../../common/components/MenuItem';
 
@@ -40,7 +43,7 @@ const SettingsMenu = () => {
         <MenuItem
           title={t('sharedPreferences')}
           link="/settings/preferences"
-          icon={<TuneIcon />}
+          icon={<SettingsIcon />}
           selected={location.pathname === '/settings/preferences'}
         />
         {!readonly && (
@@ -60,13 +63,13 @@ const SettingsMenu = () => {
             <MenuItem
               title={t('deviceTitle')}
               link="/settings/devices"
-              icon={<DnsIcon />}
+              icon={<SmartphoneIcon />}
               selected={location.pathname.startsWith('/settings/device')}
             />
             <MenuItem
               title={t('sharedGeofences')}
               link="/geofences"
-              icon={<DrawIcon />}
+              icon={<CreateIcon />}
               selected={location.pathname.startsWith('/settings/geofence')}
             />
             {!features.disableGroups && (
@@ -97,7 +100,7 @@ const SettingsMenu = () => {
               <MenuItem
                 title={t('sharedComputedAttributes')}
                 link="/settings/attributes"
-                icon={<CalculateIcon />}
+                icon={<StorageIcon />}
                 selected={location.pathname.startsWith('/settings/attribute')}
               />
             )}
@@ -113,17 +116,25 @@ const SettingsMenu = () => {
               <MenuItem
                 title={t('sharedSavedCommands')}
                 link="/settings/commands"
-                icon={<SendIcon />}
+                icon={<PublishIcon />}
                 selected={location.pathname.startsWith('/settings/command')}
               />
             )}
           </>
         )}
         {billingLink && (
-          <MenuItem title={t('userBilling')} link={billingLink} icon={<PaymentIcon />} />
+          <MenuItem
+            title={t('userBilling')}
+            link={billingLink}
+            icon={<PaymentIcon />}
+          />
         )}
         {supportLink && (
-          <MenuItem title={t('settingsSupport')} link={supportLink} icon={<HelpIcon />} />
+          <MenuItem
+            title={t('settingsSupport')}
+            link={supportLink}
+            icon={<HelpIcon />}
+          />
         )}
       </List>
       {manager && (
@@ -140,7 +151,7 @@ const SettingsMenu = () => {
               <MenuItem
                 title={t('settingsServer')}
                 link="/settings/server"
-                icon={<SettingsIcon />}
+                icon={<StorageIcon />}
                 selected={location.pathname === '/settings/server'}
               />
             )}
@@ -148,10 +159,7 @@ const SettingsMenu = () => {
               title={t('settingsUsers')}
               link="/settings/users"
               icon={<PeopleIcon />}
-              selected={
-                location.pathname.startsWith('/settings/user') &&
-                location.pathname !== `/settings/user/${userId}`
-              }
+              selected={location.pathname.startsWith('/settings/user') && location.pathname !== `/settings/user/${userId}`}
             />
           </List>
         </>

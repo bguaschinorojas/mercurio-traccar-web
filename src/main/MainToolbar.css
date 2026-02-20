@@ -1,0 +1,98 @@
+.main-toolbar-search-input {
+  border-radius: 10px;
+  background-color: #ffffff;
+}
+
+.main-toolbar-search-input .MuiOutlinedInput-notchedOutline {
+  border-color: #ebeff1;
+}
+
+.main-toolbar-search-input:hover .MuiOutlinedInput-notchedOutline {
+  border-color: #ebeff1;
+}
+
+.main-toolbar-search-input.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #ebeff1;
+}
+
+.main-toolbar-search-input .MuiInputBase-input {
+  font-size: 13px;
+  color: #383a44;
+}
+
+.main-toolbar-search-input .MuiInputBase-input::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+.main-toolbar-filter-popover {
+  margin-top: 4px;
+  border: 1px solid #ebeff1;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(56, 58, 68, 0.12);
+  background-color: #ffffff;
+}
+
+.main-toolbar-filter-panel {
+  color: #383a44;
+}
+
+.main-toolbar-filter-label {
+  font-size: 13px;
+  color: #383a44;
+}
+
+.main-toolbar-filter-label.Mui-focused {
+  color: #383a44;
+}
+
+.main-toolbar-filter-select {
+  background-color: #ffffff;
+  border-radius: 10px;
+}
+
+.main-toolbar-filter-select .MuiSelect-select {
+  font-size: 13px;
+  color: #383a44;
+}
+
+.main-toolbar-filter-select .MuiOutlinedInput-notchedOutline {
+  border-color: #ebeff1;
+}
+
+.main-toolbar-filter-select:hover .MuiOutlinedInput-notchedOutline {
+  border-color: #ebeff1;
+}
+
+.main-toolbar-filter-select.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #ebeff1;
+}
+
+.main-toolbar-filter-checkbox-label {
+  margin: 0;
+}
+
+.main-toolbar-filter-checkbox-label .MuiFormControlLabel-label {
+  font-size: 13px;
+  color: #383a44;
+}
+
+.main-toolbar-filter-checkbox {
+  color: #db5359;
+}
+
+.main-toolbar-filter-checkbox.Mui-checked {
+  color: #db5359;
+}
+
+.main-toolbar-filter-menu-paper {
+  margin-top: 4px;
+  border: 1px solid #ebeff1;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(56, 58, 68, 0.12);
+}
+
+.main-toolbar-filter-menu-paper .MuiMenuItem-root {
+  font-size: 13px;
+  color: #383a44;
+}

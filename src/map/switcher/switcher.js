@@ -1,6 +1,7 @@
 import './switcher.css';
 
 export class SwitcherControl {
+
   constructor(onBeforeSwitch, onSwitch, onAfterSwitch) {
     this.onBeforeSwitch = onBeforeSwitch;
     this.onSwitch = onSwitch;
@@ -69,7 +70,6 @@ export class SwitcherControl {
     this.onSwitch(target.dataset.id);
 
     this.mapStyleContainer.style.display = 'none';
-    this.styleButton.style.display = 'block';
 
     const elements = this.mapStyleContainer.getElementsByClassName('active');
     while (elements[0]) {
@@ -94,8 +94,8 @@ export class SwitcherControl {
     this.styleButton.classList.add('maplibregl-ctrl-icon');
     this.styleButton.classList.add('maplibregl-style-switcher');
     this.styleButton.addEventListener('click', () => {
-      this.styleButton.style.display = 'none';
-      this.mapStyleContainer.style.display = 'block';
+      const isOpen = this.mapStyleContainer.style.display === 'block';
+      this.mapStyleContainer.style.display = isOpen ? 'none' : 'block';
     });
     document.addEventListener('click', this.onDocumentClick);
     this.controlContainer.appendChild(this.styleButton);
@@ -104,12 +104,7 @@ export class SwitcherControl {
   }
 
   onRemove() {
-    if (
-      !this.controlContainer ||
-      !this.controlContainer.parentNode ||
-      !this.map ||
-      !this.styleButton
-    ) {
+    if (!this.controlContainer || !this.controlContainer.parentNode || !this.map || !this.styleButton) {
       return;
     }
     this.styleButton.removeEventListener('click', this.onDocumentClick);
@@ -119,14 +114,8 @@ export class SwitcherControl {
   }
 
   onDocumentClick(event) {
-    if (
-      this.controlContainer &&
-      !this.controlContainer.contains(event.target) &&
-      this.mapStyleContainer &&
-      this.styleButton
-    ) {
+    if (this.controlContainer && !this.controlContainer.contains(event.target) && this.mapStyleContainer && this.styleButton) {
       this.mapStyleContainer.style.display = 'none';
-      this.styleButton.style.display = 'block';
     }
   }
 }

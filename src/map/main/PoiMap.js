@@ -1,7 +1,7 @@
 import { useId, useEffect, useState } from 'react';
 import { kml } from '@tmcw/togeojson';
 import { useTheme } from '@mui/material/styles';
-import { map } from '../core/MapView';
+import { map } from '../core/mapInstance';
 import { useEffectAsync } from '../../reactHelper';
 import { usePreference } from '../../common/util/preferences';
 import { findFonts } from '../core/mapUtil';

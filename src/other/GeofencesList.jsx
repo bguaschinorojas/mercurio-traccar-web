@@ -1,7 +1,9 @@
 import { Fragment } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { makeStyles } from 'tss-react/mui';
-import { Divider, List, ListItemButton, ListItemText } from '@mui/material';
+import {
+  Divider, List, ListItemButton, ListItemText,
+} from '@mui/material';
 
 import { geofencesActions } from '../store';
 import CollectionActions from '../settings/components/CollectionActions';
@@ -37,12 +39,7 @@ const GeofencesList = ({ onGeofenceSelected }) => {
         <Fragment key={item.id}>
           <ListItemButton key={item.id} onClick={() => onGeofenceSelected(item.id)}>
             <ListItemText primary={item.name} />
-            <CollectionActions
-              itemId={item.id}
-              editPath="/settings/geofence"
-              endpoint="geofences"
-              setTimestamp={refreshGeofences}
-            />
+            <CollectionActions itemId={item.id} editPath="/settings/geofence" endpoint="geofences" setTimestamp={refreshGeofences} />
           </ListItemButton>
           {index < list.length - 1 ? <Divider /> : null}
         </Fragment>

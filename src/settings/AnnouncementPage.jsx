@@ -44,7 +44,9 @@ const AnnouncementPage = () => {
       <Container maxWidth="xs" className={classes.container}>
         <Accordion defaultExpanded>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1">{t('sharedRequired')}</Typography>
+            <Typography variant="subtitle1">
+              {t('sharedRequired')}
+            </Typography>
           </AccordionSummary>
           <AccordionDetails className={classes.details}>
             <SelectField
@@ -75,7 +77,12 @@ const AnnouncementPage = () => {
           </AccordionDetails>
         </Accordion>
         <div className={classes.buttons}>
-          <Button type="button" color="primary" variant="outlined" onClick={() => navigate(-1)}>
+          <Button
+            type="button"
+            color="primary"
+            variant="outlined"
+            onClick={() => navigate(-1)}
+          >
             {t('sharedCancel')}
           </Button>
           <Button

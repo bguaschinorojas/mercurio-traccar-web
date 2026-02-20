@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
   Accordion,
   AccordionSummary,
@@ -22,6 +21,7 @@ import { useAdministrator } from '../common/util/permissions';
 import SettingsMenu from './components/SettingsMenu';
 import useCommonDeviceAttributes from '../common/attributes/useCommonDeviceAttributes';
 import { useCatch } from '../reactHelper';
+import useQuery from '../common/util/useQuery';
 import useSettingsStyles from './common/useSettingsStyles';
 import QrCodeDialog from '../common/components/QrCodeDialog';
 import fetchOrThrow from '../common/util/fetchOrThrow';
@@ -35,8 +35,8 @@ const DevicePage = () => {
   const commonDeviceAttributes = useCommonDeviceAttributes(t);
   const deviceAttributes = useDeviceAttributes(t);
 
-  const [searchParams] = useSearchParams();
-  const uniqueId = searchParams.get('uniqueId');
+  const query = useQuery();
+  const uniqueId = query.get('uniqueId');
 
   const [item, setItem] = useState(uniqueId ? { uniqueId } : null);
   const [showQr, setShowQr] = useState(false);
@@ -72,7 +72,9 @@ const DevicePage = () => {
         <>
           <Accordion defaultExpanded>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle1">{t('sharedRequired')}</Typography>
+              <Typography variant="subtitle1">
+                {t('sharedRequired')}
+              </Typography>
             </AccordionSummary>
             <AccordionDetails className={classes.details}>
               <TextField
@@ -91,7 +93,9 @@ const DevicePage = () => {
           </Accordion>
           <Accordion>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle1">{t('sharedExtra')}</Typography>
+              <Typography variant="subtitle1">
+                {t('sharedExtra')}
+              </Typography>
             </AccordionSummary>
             <AccordionDetails className={classes.details}>
               <SelectField
@@ -118,12 +122,10 @@ const DevicePage = () => {
               <SelectField
                 value={item.category || 'default'}
                 onChange={(event) => setItem({ ...item, category: event.target.value })}
-                data={deviceCategories
-                  .map((category) => ({
-                    id: category,
-                    name: t(`category${category.replace(/^\w/, (c) => c.toUpperCase())}`),
-                  }))
-                  .sort((a, b) => a.name.localeCompare(b.name))}
+                data={deviceCategories.map((category) => ({
+                  id: category,
+                  name: t(`category${category.replace(/^\w/, (c) => c.toUpperCase())}`),
+                })).sort((a, b) => a.name.localeCompare(b.name))}
                 label={t('deviceCategory')}
               />
               <SelectField
@@ -144,16 +146,15 @@ const DevicePage = () => {
                 disabled={!admin}
               />
               <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={item.disabled}
-                    onChange={(event) => setItem({ ...item, disabled: event.target.checked })}
-                  />
-                }
+                control={<Checkbox checked={item.disabled} onChange={(event) => setItem({ ...item, disabled: event.target.checked })} />}
                 label={t('sharedDisabled')}
                 disabled={!admin}
               />
-              <Button variant="outlined" color="primary" onClick={() => setShowQr(true)}>
+              <Button
+                variant="outlined"
+                color="primary"
+                onClick={() => setShowQr(true)}
+              >
                 {t('sharedQrCode')}
               </Button>
             </AccordionDetails>
@@ -161,7 +162,9 @@ const DevicePage = () => {
           {item.id && (
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle1">{t('attributeDeviceImage')}</Typography>
+                <Typography variant="subtitle1">
+                  {t('attributeDeviceImage')}
+                </Typography>
               </AccordionSummary>
               <AccordionDetails className={classes.details}>
                 <MuiFileInput
