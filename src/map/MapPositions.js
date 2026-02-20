@@ -81,6 +81,28 @@ const resolvePositionTransitionDuration = (from, to) => {
   return clamp(rawDuration, MIN_POSITION_TRANSITION_DURATION_MS, MAX_POSITION_TRANSITION_DURATION_MS);
 };
 
+const isSamePositionPoint = (left, right) => {
+  if (!left || !right) {
+    return false;
+  }
+  return left.longitude === right.longitude
+    && left.latitude === right.latitude
+    && left.fixTime === right.fixTime;
+};
+
+const resolveLagPositionDuration = (from, to, lookAhead) => {
+  const toTs = parseTimestamp(to?.fixTime);
+  const lookAheadTs = parseTimestamp(lookAhead?.fixTime);
+  if (toTs != null && lookAheadTs != null && lookAheadTs > toTs) {
+    return clamp(
+      (lookAheadTs - toTs) * 0.98,
+      MIN_POSITION_TRANSITION_DURATION_MS,
+      MAX_POSITION_TRANSITION_DURATION_MS,
+    );
+  }
+  return resolvePositionTransitionDuration(from, to);
+};
+
 const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, selectedPosition, titleField }) => {
   const id = useId();
   const clusters = `${id}-clusters`;
@@ -107,6 +129,8 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
   const animationFrameRef = useRef(null);
   const renderSourcesRef = useRef(() => {});
   const selectedDeviceKeyRef = useRef(null);
+  const selectedLagQueueRef = useRef([]);
+  const startLagAnimationRef = useRef(() => {});
 
   const mapCluster = useAttributePreference('mapCluster', true);
   const directionType = useAttributePreference('mapDirection', 'selected');
@@ -553,56 +577,35 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
     };
   }, [mapCluster, clusters, onMarkerClick, onClusterClick, devices, groups, positions, selectedPosition, selectedDeviceId, directionType, theme, id, selected, showStatus]);
 
-  useEffect(() => {
-    const currentSelectedDeviceKey = selectedDeviceId != null ? String(selectedDeviceId) : null;
-    if (selectedDeviceKeyRef.current !== currentSelectedDeviceKey) {
-      selectedDeviceKeyRef.current = currentSelectedDeviceKey;
-      selectedRawRef.current = null;
-      selectedAnimatedRef.current = null;
-      selectedTransitionRef.current = null;
-      stopSelectedAnimation();
+  const resetSelectedLagState = useCallback(() => {
+    stopSelectedAnimation();
+    selectedLagQueueRef.current = [];
+    selectedRawRef.current = null;
+    selectedAnimatedRef.current = null;
+    selectedTransitionRef.current = null;
+  }, [stopSelectedAnimation]);
+
+  const startLagAnimation = useCallback(() => {
+    if (animationFrameRef.current) {
+      return;
     }
 
-    const currentSelectedPosition = positions.find((item) => String(item.deviceId) === currentSelectedDeviceKey);
-    if (!selectedDeviceId || !currentSelectedPosition) {
-      selectedDeviceKeyRef.current = null;
-      selectedRawRef.current = null;
-      selectedAnimatedRef.current = null;
-      selectedTransitionRef.current = null;
-      stopSelectedAnimation();
-      renderSourcesRef.current();
-      return undefined;
+    const queue = selectedLagQueueRef.current;
+    if (queue.length < 3) {
+      return;
     }
 
-    const nextRawPosition = {
-      longitude: currentSelectedPosition.longitude,
-      latitude: currentSelectedPosition.latitude,
-      course: currentSelectedPosition.course,
-      speed: currentSelectedPosition.speed,
-      fixTime: currentSelectedPosition.fixTime,
-    };
+    const from = queue[0];
+    const to = queue[1];
+    const lookAhead = queue[2];
+    const transitionStart = selectedAnimatedRef.current || from;
 
-    const previousRawPosition = selectedRawRef.current;
-    const moved = previousRawPosition
-      && (previousRawPosition.longitude !== nextRawPosition.longitude
-        || previousRawPosition.latitude !== nextRawPosition.latitude);
-
-    if (!moved) {
-      selectedAnimatedRef.current = nextRawPosition;
-      selectedTransitionRef.current = null;
-      renderSourcesRef.current();
-      selectedRawRef.current = nextRawPosition;
-      return undefined;
-    }
-
-    const transitionStart = selectedAnimatedRef.current || previousRawPosition;
     selectedTransitionRef.current = {
       from: transitionStart,
-      to: nextRawPosition,
+      to,
       startTime: performance.now(),
-      duration: resolvePositionTransitionDuration(transitionStart, nextRawPosition),
+      duration: resolveLagPositionDuration(from, to, lookAhead),
     };
-    selectedRawRef.current = nextRawPosition;
 
     const animate = (frameTime) => {
       const transition = selectedTransitionRef.current;
@@ -629,17 +632,73 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
       } else {
         selectedTransitionRef.current = null;
         selectedAnimatedRef.current = transition.to;
+        selectedRawRef.current = transition.to;
+        if (selectedLagQueueRef.current.length > 0) {
+          selectedLagQueueRef.current.shift();
+        }
         renderSourcesRef.current();
         animationFrameRef.current = null;
+        startLagAnimationRef.current();
       }
     };
 
-    if (!animationFrameRef.current) {
-      animationFrameRef.current = requestAnimationFrame(animate);
+    animationFrameRef.current = requestAnimationFrame(animate);
+  }, []);
+
+  startLagAnimationRef.current = startLagAnimation;
+
+  useEffect(() => {
+    const currentSelectedDeviceKey = selectedDeviceId != null ? String(selectedDeviceId) : null;
+    if (selectedDeviceKeyRef.current !== currentSelectedDeviceKey) {
+      selectedDeviceKeyRef.current = currentSelectedDeviceKey;
+      resetSelectedLagState();
     }
 
+    const currentSelectedPosition = positions.find((item) => String(item.deviceId) === currentSelectedDeviceKey);
+    if (!selectedDeviceId || !currentSelectedPosition) {
+      selectedDeviceKeyRef.current = null;
+      resetSelectedLagState();
+      renderSourcesRef.current();
+      return undefined;
+    }
+
+    const nextRawPosition = {
+      longitude: currentSelectedPosition.longitude,
+      latitude: currentSelectedPosition.latitude,
+      course: currentSelectedPosition.course,
+      speed: currentSelectedPosition.speed,
+      fixTime: currentSelectedPosition.fixTime,
+    };
+
+    const queue = selectedLagQueueRef.current;
+    if (!queue.length) {
+      queue.push(nextRawPosition);
+      selectedRawRef.current = nextRawPosition;
+      selectedAnimatedRef.current = nextRawPosition;
+      selectedTransitionRef.current = null;
+      renderSourcesRef.current();
+      return undefined;
+    }
+
+    const lastQueued = queue[queue.length - 1];
+    if (isSamePositionPoint(lastQueued, nextRawPosition)) {
+      return undefined;
+    }
+
+    queue.push(nextRawPosition);
+
+    // Hold one point behind until we have look-ahead point.
+    if (queue.length === 2) {
+      selectedRawRef.current = queue[0];
+      selectedAnimatedRef.current = queue[0];
+      selectedTransitionRef.current = null;
+      renderSourcesRef.current();
+      return undefined;
+    }
+
+    startLagAnimationRef.current();
     return undefined;
-  }, [positions, selectedDeviceId, stopSelectedAnimation]);
+  }, [positions, selectedDeviceId, resetSelectedLagState]);
 
   useEffect(() => () => {
     stopSelectedAnimation();

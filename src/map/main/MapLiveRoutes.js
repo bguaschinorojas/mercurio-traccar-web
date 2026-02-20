@@ -81,6 +81,28 @@ const resolveRouteTransitionDuration = (from, to) => {
   return clamp(rawDuration, MIN_ROUTE_TRANSITION_DURATION_MS, MAX_ROUTE_TRANSITION_DURATION_MS);
 };
 
+const isSameRoutePoint = (left, right) => {
+  if (!left || !right) {
+    return false;
+  }
+  return left.longitude === right.longitude
+    && left.latitude === right.latitude
+    && left.fixTime === right.fixTime;
+};
+
+const resolveLagRouteDuration = (from, to, lookAhead) => {
+  const toTs = parseTimestamp(to?.fixTime);
+  const lookAheadTs = parseTimestamp(lookAhead?.fixTime);
+  if (toTs != null && lookAheadTs != null && lookAheadTs > toTs) {
+    return clamp(
+      (lookAheadTs - toTs) * 0.98,
+      MIN_ROUTE_TRANSITION_DURATION_MS,
+      MAX_ROUTE_TRANSITION_DURATION_MS,
+    );
+  }
+  return resolveRouteTransitionDuration(from, to);
+};
+
 const MapLiveRoutes = () => {
   const id = useId();
 
@@ -101,6 +123,8 @@ const MapLiveRoutes = () => {
   const animationFrameRef = useRef(null);
   const renderRoutesRef = useRef(() => {});
   const selectedDeviceKeyRef = useRef(null);
+  const selectedLagQueueRef = useRef([]);
+  const startLagAnimationRef = useRef(() => {});
 
   const mapLineWidth = useAttributePreference('mapLineWidth', 5);
   const mapLineOpacity = useAttributePreference('mapLineOpacity', 1);
@@ -171,25 +195,22 @@ const MapLiveRoutes = () => {
         }
 
         if (selectedDeviceKey && String(deviceId) === selectedDeviceKey && interpolatedSelected) {
-          const hasActiveTransition = Boolean(selectedTransitionRef.current);
-          if (hasActiveTransition && coordinates.length >= 2) {
-            const baseCoordinates = coordinates.slice(0, -1);
-            const dynamicTail = [interpolatedSelected.longitude, interpolatedSelected.latitude];
-            const previousBasePoint = baseCoordinates.at(-1);
-            if (!previousBasePoint
-              || previousBasePoint[0] !== dynamicTail[0]
-              || previousBasePoint[1] !== dynamicTail[1]) {
-              coordinates = [...baseCoordinates, dynamicTail];
+          const lagQueueSize = selectedLagQueueRef.current.length;
+          const pointsToHide = lagQueueSize > 1 ? lagQueueSize - 1 : 0;
+          if (pointsToHide > 0) {
+            if (coordinates.length > pointsToHide) {
+              coordinates = coordinates.slice(0, -pointsToHide);
             } else {
-              coordinates = baseCoordinates;
+              coordinates = coordinates.slice(0, 1);
             }
-          } else {
-            const lastCoordinate = coordinates.at(-1);
-            if (!lastCoordinate
-              || lastCoordinate[0] !== interpolatedSelected.longitude
-              || lastCoordinate[1] !== interpolatedSelected.latitude) {
-              coordinates = [...coordinates, [interpolatedSelected.longitude, interpolatedSelected.latitude]];
-            }
+          }
+
+          const dynamicTail = [interpolatedSelected.longitude, interpolatedSelected.latitude];
+          const lastCoordinate = coordinates.at(-1);
+          if (!lastCoordinate
+            || lastCoordinate[0] !== dynamicTail[0]
+            || lastCoordinate[1] !== dynamicTail[1]) {
+            coordinates = [...coordinates, dynamicTail];
           }
         }
 
@@ -216,65 +237,35 @@ const MapLiveRoutes = () => {
     renderRoutes();
   }, [renderRoutes]);
 
-  useEffect(() => {
-    if (type === 'none') {
-      stopRouteAnimation();
-      selectedDeviceKeyRef.current = null;
-      selectedRawRef.current = null;
-      selectedAnimatedRef.current = null;
-      selectedTransitionRef.current = null;
-      return undefined;
+  const resetRouteLagState = useCallback(() => {
+    stopRouteAnimation();
+    selectedLagQueueRef.current = [];
+    selectedRawRef.current = null;
+    selectedAnimatedRef.current = null;
+    selectedTransitionRef.current = null;
+  }, [stopRouteAnimation]);
+
+  const startLagRouteAnimation = useCallback(() => {
+    if (animationFrameRef.current) {
+      return;
     }
 
-    const selectedDeviceKey = selectedDeviceId != null ? String(selectedDeviceId) : null;
-    if (selectedDeviceKeyRef.current !== selectedDeviceKey) {
-      selectedDeviceKeyRef.current = selectedDeviceKey;
-      stopRouteAnimation();
-      selectedRawRef.current = null;
-      selectedAnimatedRef.current = null;
-      selectedTransitionRef.current = null;
+    const queue = selectedLagQueueRef.current;
+    if (queue.length < 3) {
+      return;
     }
 
-    const selectedPosition = selectedDeviceKey ? positions[selectedDeviceKey] : null;
+    const from = queue[0];
+    const to = queue[1];
+    const lookAhead = queue[2];
+    const transitionStart = selectedAnimatedRef.current || from;
 
-    if (!selectedDeviceKey || !selectedPosition) {
-      stopRouteAnimation();
-      selectedDeviceKeyRef.current = null;
-      selectedRawRef.current = null;
-      selectedAnimatedRef.current = null;
-      selectedTransitionRef.current = null;
-      renderRoutesRef.current();
-      return undefined;
-    }
-
-    const nextRawPosition = {
-      longitude: selectedPosition.longitude,
-      latitude: selectedPosition.latitude,
-      speed: selectedPosition.speed,
-      fixTime: selectedPosition.fixTime,
-    };
-
-    const previousRawPosition = selectedRawRef.current;
-    const moved = previousRawPosition
-      && (previousRawPosition.longitude !== nextRawPosition.longitude
-        || previousRawPosition.latitude !== nextRawPosition.latitude);
-
-    if (!moved) {
-      selectedAnimatedRef.current = nextRawPosition;
-      selectedTransitionRef.current = null;
-      selectedRawRef.current = nextRawPosition;
-      renderRoutesRef.current();
-      return undefined;
-    }
-
-    const transitionStart = selectedAnimatedRef.current || previousRawPosition;
     selectedTransitionRef.current = {
       from: transitionStart,
-      to: nextRawPosition,
+      to,
       startTime: performance.now(),
-      duration: resolveRouteTransitionDuration(transitionStart, nextRawPosition),
+      duration: resolveLagRouteDuration(from, to, lookAhead),
     };
-    selectedRawRef.current = nextRawPosition;
 
     const animate = (frameTime) => {
       const transition = selectedTransitionRef.current;
@@ -300,17 +291,79 @@ const MapLiveRoutes = () => {
       } else {
         selectedTransitionRef.current = null;
         selectedAnimatedRef.current = transition.to;
+        selectedRawRef.current = transition.to;
+        if (selectedLagQueueRef.current.length > 0) {
+          selectedLagQueueRef.current.shift();
+        }
         renderRoutesRef.current();
         animationFrameRef.current = null;
+        startLagAnimationRef.current();
       }
     };
 
-    if (!animationFrameRef.current) {
-      animationFrameRef.current = requestAnimationFrame(animate);
+    animationFrameRef.current = requestAnimationFrame(animate);
+  }, []);
+
+  startLagAnimationRef.current = startLagRouteAnimation;
+
+  useEffect(() => {
+    if (type === 'none') {
+      selectedDeviceKeyRef.current = null;
+      resetRouteLagState();
+      return undefined;
     }
 
+    const selectedDeviceKey = selectedDeviceId != null ? String(selectedDeviceId) : null;
+    if (selectedDeviceKeyRef.current !== selectedDeviceKey) {
+      selectedDeviceKeyRef.current = selectedDeviceKey;
+      resetRouteLagState();
+    }
+
+    const selectedPosition = selectedDeviceKey ? positions[selectedDeviceKey] : null;
+
+    if (!selectedDeviceKey || !selectedPosition) {
+      selectedDeviceKeyRef.current = null;
+      resetRouteLagState();
+      renderRoutesRef.current();
+      return undefined;
+    }
+
+    const nextRawPosition = {
+      longitude: selectedPosition.longitude,
+      latitude: selectedPosition.latitude,
+      speed: selectedPosition.speed,
+      fixTime: selectedPosition.fixTime,
+    };
+
+    const queue = selectedLagQueueRef.current;
+    if (!queue.length) {
+      queue.push(nextRawPosition);
+      selectedRawRef.current = nextRawPosition;
+      selectedAnimatedRef.current = nextRawPosition;
+      selectedTransitionRef.current = null;
+      renderRoutesRef.current();
+      return undefined;
+    }
+
+    const lastQueued = queue[queue.length - 1];
+    if (isSameRoutePoint(lastQueued, nextRawPosition)) {
+      return undefined;
+    }
+
+    queue.push(nextRawPosition);
+
+    // Hold one point behind until we have look-ahead point.
+    if (queue.length === 2) {
+      selectedRawRef.current = queue[0];
+      selectedAnimatedRef.current = queue[0];
+      selectedTransitionRef.current = null;
+      renderRoutesRef.current();
+      return undefined;
+    }
+
+    startLagAnimationRef.current();
     return undefined;
-  }, [type, selectedDeviceId, positions, stopRouteAnimation]);
+  }, [type, selectedDeviceId, positions, resetRouteLagState]);
 
   useEffect(() => () => {
     stopRouteAnimation();
