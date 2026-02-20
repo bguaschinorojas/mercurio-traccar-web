@@ -13,39 +13,58 @@ const MapDefaultCamera = ({ mapReady }) => {
   const defaultZoom = usePreference('zoom', 0);
 
   const [initialized, setInitialized] = useState(false);
+  const [fallbackApplied, setFallbackApplied] = useState(false);
 
   useEffect(() => {
     if (!mapReady) return;
     if (selectedDeviceId) {
       setInitialized(true);
-    } else if (!initialized) {
-      if (defaultLatitude && defaultLongitude) {
-        map.jumpTo({
-          center: [defaultLongitude, defaultLatitude],
-          zoom: defaultZoom,
-        });
-        setInitialized(true);
-      } else {
-        const coordinates = Object.values(positions).map((item) => [item.longitude, item.latitude]);
-        if (coordinates.length > 1) {
-          const bounds = coordinates.reduce((bounds, item) => bounds.extend(item), new maplibregl.LngLatBounds(coordinates[0], coordinates[1]));
-          const canvas = map.getCanvas();
-          map.fitBounds(bounds, {
-            duration: 0,
-            padding: Math.min(canvas.width, canvas.height) * 0.1,
-          });
-          setInitialized(true);
-        } else if (coordinates.length) {
-          const [individual] = coordinates;
-          map.jumpTo({
-            center: individual,
-            zoom: Math.max(map.getZoom(), 10),
-          });
-          setInitialized(true);
-        }
-      }
+      return;
     }
-  }, [selectedDeviceId, initialized, defaultLatitude, defaultLongitude, defaultZoom, positions, mapReady]);
+
+    if (initialized) {
+      return;
+    }
+
+    const coordinates = Object.values(positions).map((item) => [item.longitude, item.latitude]);
+    if (coordinates.length > 1) {
+      const bounds = coordinates.reduce((bounds, item) => bounds.extend(item), new maplibregl.LngLatBounds(coordinates[0], coordinates[1]));
+      const canvas = map.getCanvas();
+      map.fitBounds(bounds, {
+        duration: 0,
+        padding: Math.min(canvas.width, canvas.height) * 0.1,
+      });
+      setInitialized(true);
+      return;
+    }
+
+    if (coordinates.length === 1) {
+      const [individual] = coordinates;
+      map.jumpTo({
+        center: individual,
+        zoom: Math.max(map.getZoom(), 10),
+      });
+      setInitialized(true);
+      return;
+    }
+
+    if (!fallbackApplied && defaultLatitude && defaultLongitude) {
+      map.jumpTo({
+        center: [defaultLongitude, defaultLatitude],
+        zoom: defaultZoom,
+      });
+      setFallbackApplied(true);
+    }
+  }, [
+    selectedDeviceId,
+    initialized,
+    fallbackApplied,
+    defaultLatitude,
+    defaultLongitude,
+    defaultZoom,
+    positions,
+    mapReady,
+  ]);
 
   return null;
 };

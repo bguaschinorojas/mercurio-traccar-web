@@ -5,11 +5,10 @@ import { Paper } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import DeviceList from './DeviceList';
 import BottomMenu from '../common/components/BottomMenu';
 import StatusCard from '../common/components/StatusCard';
-import { devicesActions } from '../store';
 import usePersistedState from '../common/util/usePersistedState';
 import EventsDrawer from './EventsDrawer';
 import useFilter from './useFilter';
@@ -91,7 +90,6 @@ const useStyles = makeStyles()((theme) => ({
 
 const MainPage = () => {
   const { classes } = useStyles();
-  const dispatch = useDispatch();
   const theme = useTheme();
 
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
@@ -100,10 +98,12 @@ const MainPage = () => {
   const features = useFeatures();
 
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
+  const selectTime = useSelector((state) => state.devices.selectTime);
   const positions = useSelector((state) => state.session.positions);
   const eventsAvailable = useSelector((state) => !!state.events.items.length);
   const [filteredPositions, setFilteredPositions] = useState([]);
   const selectedPosition = filteredPositions.find((position) => selectedDeviceId && position.deviceId === selectedDeviceId);
+  const [statusCardOpen, setStatusCardOpen] = useState(false);
 
   const [filteredDevices, setFilteredDevices] = useState([]);
 
@@ -125,6 +125,10 @@ const MainPage = () => {
       setDevicesOpen(false);
     }
   }, [desktop, mapOnSelect, selectedDeviceId]);
+
+  useEffect(() => {
+    setStatusCardOpen(Boolean(selectedDeviceId));
+  }, [selectedDeviceId, selectTime]);
 
   useFilter(keyword, filter, filterSort, filterMap, positions, setFilteredDevices, setFilteredPositions);
 
@@ -181,11 +185,11 @@ const MainPage = () => {
         </div>
       </div>
       <EventsDrawer open={eventsOpen} onClose={() => setEventsOpen(false)} />
-      {selectedDeviceId && (
+      {selectedDeviceId && statusCardOpen && (
         <StatusCard
           deviceId={selectedDeviceId}
           position={selectedPosition}
-          onClose={() => dispatch(devicesActions.selectId(null))}
+          onClose={() => setStatusCardOpen(false)}
           desktopPadding={theme.dimensions.drawerWidthDesktop}
           anchorToSidebar={desktop}
           sidebarWidth={devicesOpen ? SIDEBAR_EXPANDED_WIDTH : SIDEBAR_COLLAPSED_WIDTH}
