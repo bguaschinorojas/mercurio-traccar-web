@@ -1068,11 +1068,14 @@ const StatusCard = ({
   const deviceImage = device?.attributes?.deviceImage;
 
   const positionAttributes = usePositionAttributes(t);
-  const positionItems = useAttributePreference('positionItems', 'address,altitude,accuracy,sat,ignition,batteryLevel');
+  const positionItems = useAttributePreference('positionItems', 'address,altitude,accuracy,sat,batteryLevel');
   
   // Filtrar elementos que ya mostramos en secciones personalizadas
   const excludedProperties = ['fixTime', 'speed', 'totalDistance', 'batteryLevel', 'altitude', 'latitude', 'accuracy', 'sat', 'satellites', 'ignition'];
-  const filteredItems = positionItems.split(',').filter((key) => !excludedProperties.includes(key));
+  const filteredItems = positionItems
+    .split(',')
+    .map((key) => key.trim())
+    .filter((key) => key && !excludedProperties.includes(key));
   const idIndex = filteredItems.indexOf('id');
   const visibleItems = idIndex >= 0 ? filteredItems.slice(0, idIndex) : filteredItems;
 
@@ -1143,7 +1146,10 @@ const StatusCard = ({
                 <CardContent className={classes.content}>
                   <Table size="small" classes={{ root: classes.table }}>
                     <TableBody>
-                      {visibleItems.filter((key) => position.hasOwnProperty(key) || position.attributes.hasOwnProperty(key)).map((key, index) => {
+                      {visibleItems
+                        .filter((key) => key !== 'ignition')
+                        .filter((key) => position.hasOwnProperty(key) || position.attributes.hasOwnProperty(key))
+                        .map((key) => {
                         const rows = [];
                         
                         // Agregar la fila normal
@@ -1181,8 +1187,8 @@ const StatusCard = ({
                           );
                         }
                         
-                        return rows;
-                      }).flat()}
+                          return rows;
+                        }).flat()}
                     </TableBody>
                     <TableFooter />
                   </Table>
