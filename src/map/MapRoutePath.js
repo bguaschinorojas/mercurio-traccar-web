@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { map } from './core/mapInstance';
 import getSpeedColor from '../common/util/colors';
 import { useAttributePreference } from '../common/util/preferences';
+import { resolveDeviceReportColor } from '../common/util/reportColor';
 
 const MapRoutePath = ({ positions }) => {
   const id = useId();
@@ -13,13 +14,9 @@ const MapRoutePath = ({ positions }) => {
   const reportColor = useSelector((state) => {
     const position = positions?.find(() => true);
     if (position) {
-      const attributes = state.devices.items[position.deviceId]?.attributes;
-      if (attributes) {
-        const color = attributes['web.reportColor'];
-        if (color) {
-          return color;
-        }
-      }
+      const device = state.devices.items[position.deviceId];
+      const groups = state.groups.items;
+      return resolveDeviceReportColor(device, groups);
     }
     return null;
   });

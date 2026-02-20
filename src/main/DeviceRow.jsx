@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { makeStyles } from 'tss-react/mui';
 import {
@@ -29,6 +29,11 @@ import { useAttributePreference } from '../common/util/preferences';
 import { updateStationaryState } from '../common/util/stationaryState';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 import { useCatchCallback } from '../reactHelper';
+import {
+  REPORT_COLOR_PALETTE,
+  normalizeReportColor,
+  resolveDeviceReportColor,
+} from '../common/util/reportColor';
 
 dayjs.extend(relativeTime);
 
@@ -46,20 +51,6 @@ const formatStoppedDuration = (durationMs) => {
     return `${hours}h ${minutes}m`;
   }
   return `${minutes}m`;
-};
-
-const normalizeColor = (value, fallback = '#2563eb') => {
-  if (typeof value !== 'string') {
-    return fallback;
-  }
-  const trimmed = value.trim();
-  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) {
-    return trimmed.toLowerCase();
-  }
-  if (/^[0-9a-fA-F]{6}$/.test(trimmed)) {
-    return `#${trimmed.toLowerCase()}`;
-  }
-  return fallback;
 };
 
 const useStyles = makeStyles()((theme) => ({
@@ -118,8 +109,8 @@ const useStyles = makeStyles()((theme) => ({
     minWidth: 0,
   },
   rowMenuButton: {
-    marginLeft: '6px',
-    marginRight: '2px',
+    marginLeft: '4px',
+    marginRight: '6px',
     color: '#6B7280',
     width: '30px',
     height: '30px',
@@ -132,20 +123,29 @@ const useStyles = makeStyles()((theme) => ({
     fontSize: '13px',
     fontWeight: 500,
     color: theme.palette.text.primary,
+    cursor: 'default',
   },
-  colorSwatch: {
-    width: '14px',
-    height: '14px',
-    borderRadius: '4px',
+  colorPalette: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(6, 24px)',
+    gap: '8px',
+    padding: '8px 16px 14px 16px',
+  },
+  colorOption: {
+    width: '24px',
+    height: '24px',
+    borderRadius: '6px',
     border: `1px solid ${theme.palette.divider}`,
-    marginLeft: '10px',
+    boxSizing: 'border-box',
+    cursor: 'pointer',
+    outline: 'none',
+    transition: 'transform 0.1s ease',
+    '&:hover': {
+      transform: 'translateY(-1px)',
+    },
   },
-  hiddenColorInput: {
-    position: 'absolute',
-    opacity: 0,
-    width: 0,
-    height: 0,
-    pointerEvents: 'none',
+  colorOptionSelected: {
+    border: '2px solid #111827',
   },
   avatarMoving: {
     borderColor: '#81C784',
@@ -203,16 +203,16 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
   const dispatch = useDispatch();
   const t = useTranslation();
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
-  const colorInputRef = useRef(null);
 
   const admin = useAdministrator();
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
+  const groups = useSelector((state) => state.groups.items);
 
   const item = itemProp || data[index];
   const position = useSelector((state) => state.session.positions[item.id]);
 
   const devicePrimary = useAttributePreference('devicePrimary', 'name');
-  const selectedReportColor = normalizeColor(item.attributes?.['web.reportColor']);
+  const selectedReportColor = resolveDeviceReportColor(item, groups) || REPORT_COLOR_PALETTE[0];
   const colorMenuOpen = Boolean(menuAnchorEl);
 
   const handleMenuOpen = (event) => {
@@ -226,7 +226,10 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
   };
 
   const saveDeviceColor = useCatchCallback(async (colorValue) => {
-    const normalized = normalizeColor(colorValue);
+    const normalized = normalizeReportColor(colorValue);
+    if (!normalized) {
+      return;
+    }
     const updatedDevice = {
       ...item,
       attributes: {
@@ -244,9 +247,9 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
     dispatch(devicesActions.update([await response.json()]));
   }, [dispatch, item]);
 
-  const handleColorChange = (event) => {
+  const handleColorSelect = (event, colorValue) => {
     event.stopPropagation();
-    saveDeviceColor(event.target.value);
+    saveDeviceColor(colorValue);
     setMenuAnchorEl(null);
   };
 
@@ -364,14 +367,6 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
 
   return (
     <div style={{ ...style }} className={classes.deviceRowContainer}>
-      <IconButton
-        size="small"
-        className={classes.rowMenuButton}
-        onClick={handleMenuOpen}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <MoreVertIcon fontSize="small" />
-      </IconButton>
       <ListItemButton
         key={item.id}
         onClick={() => dispatch(devicesActions.selectId(item.id))}
@@ -408,42 +403,49 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
           </>
         )}
       </ListItemButton>
+      <IconButton
+        size="small"
+        className={classes.rowMenuButton}
+        onClick={handleMenuOpen}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <MoreVertIcon fontSize="small" />
+      </IconButton>
       <Menu
         anchorEl={menuAnchorEl}
         open={colorMenuOpen}
         onClose={handleMenuClose}
         onClick={(event) => event.stopPropagation()}
+        MenuListProps={{
+          autoFocusItem: false,
+        }}
         anchorOrigin={{
           vertical: 'bottom',
-          horizontal: 'left',
+          horizontal: 'right',
         }}
         transformOrigin={{
           vertical: 'top',
-          horizontal: 'left',
+          horizontal: 'right',
         }}
       >
-        <MenuItem
-          onClick={(event) => {
-            event.stopPropagation();
-            colorInputRef.current?.click();
-          }}
-        >
+        <MenuItem disableRipple disableTouchRipple>
           <Typography className={classes.menuItemLabel}>
             {t('deviceChangeColor') || 'Cambiar color'}
           </Typography>
-          <Box
-            className={classes.colorSwatch}
-            sx={{ backgroundColor: selectedReportColor }}
-          />
-          <input
-            ref={colorInputRef}
-            type="color"
-            value={selectedReportColor}
-            onChange={handleColorChange}
-            className={classes.hiddenColorInput}
-            aria-label={t('deviceChangeColor') || 'Cambiar color'}
-          />
         </MenuItem>
+        <Box className={classes.colorPalette}>
+          {REPORT_COLOR_PALETTE.map((colorValue) => (
+            <Box
+              key={colorValue}
+              component="button"
+              type="button"
+              onClick={(event) => handleColorSelect(event, colorValue)}
+              className={`${classes.colorOption} ${selectedReportColor === colorValue ? classes.colorOptionSelected : ''}`}
+              sx={{ backgroundColor: colorValue }}
+              aria-label={`${t('deviceChangeColor') || 'Cambiar color'} ${colorValue}`}
+            />
+          ))}
+        </Box>
       </Menu>
     </div>
   );

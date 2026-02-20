@@ -14,6 +14,7 @@ import { useAttributePreference } from '../common/util/preferences';
 import { useCatchCallback } from '../reactHelper';
 import { findFonts } from './core/mapUtil';
 import { updateStationaryState } from '../common/util/stationaryState';
+import { resolveDeviceReportColor } from '../common/util/reportColor';
 
 const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, selectedPosition, titleField }) => {
   const id = useId();
@@ -33,12 +34,16 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
 
   const devices = useSelector((state) => state.devices.items);
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
+  const groups = useSelector((state) => state.groups.items);
 
   const mapCluster = useAttributePreference('mapCluster', true);
   const directionType = useAttributePreference('mapDirection', 'selected');
 
-  const createFeature = (devices, position, selectedPositionId) => {
+  const createFeature = (devices, groups, position, selectedPositionId) => {
     const device = devices[position.deviceId];
+    if (!device) {
+      return null;
+    }
     let showDirection;
     switch (directionType) {
       case 'none':
@@ -60,7 +65,7 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
       speedKmh,
       fixTime: position.fixTime,
     });
-    const reportColor = device.attributes?.['web.reportColor'];
+    const reportColor = resolveDeviceReportColor(device, groups);
     const customColorKey = normalizeCustomColorKey(reportColor);
 
     return {
@@ -394,7 +399,7 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
       const customColorValues = [...new Set(
         positions
           .filter((it) => devices.hasOwnProperty(it.deviceId))
-          .map((it) => devices[it.deviceId]?.attributes?.['web.reportColor'])
+          .map((it) => resolveDeviceReportColor(devices[it.deviceId], groups))
           .filter(Boolean),
       )];
 
@@ -423,14 +428,21 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
           type: 'FeatureCollection',
           features: positions.filter((it) => devices.hasOwnProperty(it.deviceId))
             .filter((it) => (source === id ? it.deviceId !== selectedDeviceId : it.deviceId === selectedDeviceId))
-            .map((position) => ({
-              type: 'Feature',
-              geometry: {
-                type: 'Point',
-                coordinates: [position.longitude, position.latitude],
-              },
-              properties: createFeature(devices, position, selectedPosition && selectedPosition.id),
-            })),
+            .map((position) => {
+              const feature = createFeature(devices, groups, position, selectedPosition && selectedPosition.id);
+              if (!feature) {
+                return null;
+              }
+              return {
+                type: 'Feature',
+                geometry: {
+                  type: 'Point',
+                  coordinates: [position.longitude, position.latitude],
+                },
+                properties: feature,
+              };
+            })
+            .filter(Boolean),
         });
       });
     };
@@ -440,7 +452,7 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
     return () => {
       cancelled = true;
     };
-  }, [mapCluster, clusters, onMarkerClick, onClusterClick, devices, positions, selectedPosition, selectedDeviceId, directionType, theme, id, selected, showStatus]);
+  }, [mapCluster, clusters, onMarkerClick, onClusterClick, devices, groups, positions, selectedPosition, selectedDeviceId, directionType, theme, id, selected, showStatus]);
 
   return null;
 };

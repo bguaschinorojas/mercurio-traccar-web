@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { useTheme } from '@mui/material/styles';
 import { map } from '../core/mapInstance';
 import { useAttributePreference } from '../../common/util/preferences';
+import { resolveDeviceReportColor } from '../../common/util/reportColor';
 
 const buildTrailSegments = (coordinates, maxOpacity) => {
   if (!coordinates || coordinates.length < 2) {
@@ -32,6 +33,7 @@ const MapLiveRoutes = () => {
 
   const devices = useSelector((state) => state.devices.items);
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
+  const groups = useSelector((state) => state.groups.items);
 
   const history = useSelector((state) => state.session.history);
 
@@ -85,7 +87,7 @@ const MapLiveRoutes = () => {
       map.getSource(id)?.setData({
         type: 'FeatureCollection',
         features: deviceIds.flatMap((deviceId) => {
-          const color = devices[deviceId].attributes['web.reportColor'] || theme.palette.geometry.main;
+          const color = resolveDeviceReportColor(devices[deviceId], groups) || theme.palette.geometry.main;
           return buildTrailSegments(history[deviceId], mapLineOpacity).map((segment) => ({
             type: 'Feature',
             geometry: {
@@ -102,7 +104,7 @@ const MapLiveRoutes = () => {
         }),
       });
     }
-  }, [theme, type, devices, selectedDeviceId, history, mapLineWidth, mapLineOpacity]);
+  }, [theme, type, devices, groups, selectedDeviceId, history, mapLineWidth, mapLineOpacity]);
 
   return null;
 };

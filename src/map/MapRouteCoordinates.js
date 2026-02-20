@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { map } from './core/mapInstance';
 import { findFonts } from './core/mapUtil';
 import { useAttributePreference } from '../common/util/preferences';
+import { resolveDeviceReportColor } from '../common/util/reportColor';
 
 const MapRouteCoordinates = ({ name, coordinates, deviceId }) => {
   const id = useId();
@@ -11,12 +12,11 @@ const MapRouteCoordinates = ({ name, coordinates, deviceId }) => {
   const theme = useTheme();
 
   const reportColor = useSelector((state) => {
-    const attributes = state.devices.items[deviceId]?.attributes;
-    if (attributes) {
-      const color = attributes['web.reportColor'];
-      if (color) {
-        return color;
-      }
+    const device = state.devices.items[deviceId];
+    const groups = state.groups.items;
+    const color = resolveDeviceReportColor(device, groups);
+    if (color) {
+      return color;
     }
     return theme.palette.geometry.main;
   });
