@@ -105,10 +105,46 @@ const getAttributeValue = (attributes = {}, keys = []) => {
   return undefined;
 };
 
+const getAttributeEntry = (attributes = {}, keys = []) => {
+  const loweredKeys = keys.map((key) => key.toLowerCase());
+  for (const [attributeKey, attributeValue] of Object.entries(attributes || {})) {
+    if (loweredKeys.includes(attributeKey.toLowerCase())) {
+      return { key: attributeKey, value: attributeValue };
+    }
+  }
+  return null;
+};
+
 const normalizeDigits = (value) => (value == null ? '' : String(value).replace(/\D/g, ''));
 
+const parseJsonIfNeeded = (value) => {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return null;
+  }
+};
+
+const getNetworkPayload = (attributes = {}, networkData = null) => {
+  const rawNetwork = networkData ?? getAttributeValue(attributes, ['network']);
+  const parsedNetwork = parseJsonIfNeeded(rawNetwork) || rawNetwork;
+
+  if (!parsedNetwork || typeof parsedNetwork !== 'object') {
+    return {};
+  }
+
+  const parsedCellTowers = parseJsonIfNeeded(parsedNetwork.cellTowers) || parsedNetwork.cellTowers;
+  return {
+    ...parsedNetwork,
+    cellTowers: Array.isArray(parsedCellTowers) ? parsedCellTowers : [],
+  };
+};
+
 const getCarrierName = (attributes = {}, networkData = null) => {
-  const network = networkData || attributes?.network || {};
+  const network = getNetworkPayload(attributes, networkData);
   const firstCellTower = Array.isArray(network?.cellTowers) ? network.cellTowers[0] : null;
 
   const mncRaw = getAttributeValue(attributes, ['mnc', 'mobileNetworkCode'])
@@ -174,6 +210,36 @@ const normalizeGsmDbm = (rawValue) => {
 
 const gsmDbmToPercent = (dbm) => Math.round(clamp(((dbm + 113) / 62) * 100, 0, 100));
 const satellitesToPercent = (satellites) => Math.round(clamp((satellites / 20) * 100, 0, 100));
+
+const getGsmSignalPercent = (attributes = {}) => {
+  const signalEntry = getAttributeEntry(attributes, ['rssi', 'signal', 'csq', 'asu']);
+  if (!signalEntry) {
+    return null;
+  }
+
+  const numericValue = parseNumericValue(signalEntry.value);
+  if (numericValue == null || numericValue === 99 || numericValue === 255) {
+    return null;
+  }
+
+  const signalKey = String(signalEntry.key || '').toLowerCase();
+
+  // En muchos GT06 el RSSI llega en barras (0..4 / 0..5), no en dBm.
+  if ((signalKey === 'rssi' || signalKey === 'signal') && numericValue >= 0 && numericValue <= 4) {
+    return Math.round((numericValue / 4) * 100);
+  }
+  if ((signalKey === 'rssi' || signalKey === 'signal') && numericValue > 4 && numericValue <= 5) {
+    return Math.round((numericValue / 5) * 100);
+  }
+
+  // CSQ/ASU estándar (0..31)
+  if (numericValue >= 0 && numericValue <= 31) {
+    return Math.round((numericValue / 31) * 100);
+  }
+
+  const dbmValue = normalizeGsmDbm(numericValue);
+  return dbmValue != null ? gsmDbmToPercent(dbmValue) : null;
+};
 
 // Componente para mostrar el nivel de batería
 const BatteryRow = ({ position, device }) => {
@@ -274,9 +340,9 @@ const GPSRow = ({ position, device }) => {
   const deviceKey = device?.id || position?.deviceId;
   const satellitesRaw = getAttributeValue(attributes, ['sat', 'satellites']);
   const satellitesCurrent = parseNumericValue(satellitesRaw);
-  const gsmRaw = getAttributeValue(attributes, ['rssi', 'signal', 'csq', 'asu']);
-  const gsmDbmCurrent = normalizeGsmDbm(gsmRaw);
+  const gsmPercentCurrent = getGsmSignalPercent(attributes);
   const carrierCurrent = getCarrierName(attributes, position?.network);
+  const carrierFromDevice = getCarrierName(device?.attributes || {});
 
   useEffect(() => {
     if (!position || !deviceKey) {
@@ -287,8 +353,8 @@ const GPSRow = ({ position, device }) => {
     const nextTelemetry = { ...previousTelemetry };
     let hasChanges = false;
 
-    if (gsmDbmCurrent != null) {
-      nextTelemetry.gsmDbm = gsmDbmCurrent;
+    if (gsmPercentCurrent != null) {
+      nextTelemetry.gsmPercent = gsmPercentCurrent;
       hasChanges = true;
     }
     if (satellitesCurrent != null) {
@@ -299,11 +365,15 @@ const GPSRow = ({ position, device }) => {
       nextTelemetry.carrier = carrierCurrent;
       hasChanges = true;
     }
+    if (!nextTelemetry.carrier && carrierFromDevice) {
+      nextTelemetry.carrier = carrierFromDevice;
+      hasChanges = true;
+    }
 
     if (hasChanges) {
       gpsTelemetryCache.set(deviceKey, nextTelemetry);
     }
-  }, [position, deviceKey, gsmDbmCurrent, satellitesCurrent, carrierCurrent]);
+  }, [position, deviceKey, gsmPercentCurrent, satellitesCurrent, carrierCurrent, carrierFromDevice]);
 
   if (!position) return null;
   
@@ -327,9 +397,8 @@ const GPSRow = ({ position, device }) => {
   // Precisión
   const accuracyValue = attributes.accuracy ?? position.accuracy;
 
-  const gsmDbmValue = gsmDbmCurrent ?? cachedTelemetry.gsmDbm ?? null;
-  const gsmPercent = gsmDbmValue != null ? gsmDbmToPercent(gsmDbmValue) : 100;
-  const carrierName = carrierCurrent || cachedTelemetry.carrier || 'Operador desconocido';
+  const gsmPercent = gsmPercentCurrent ?? cachedTelemetry.gsmPercent ?? 0;
+  const carrierName = carrierCurrent || cachedTelemetry.carrier || carrierFromDevice || 'Operador desconocido';
   
   return (
     <TableRow>
