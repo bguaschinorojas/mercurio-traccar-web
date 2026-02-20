@@ -12,7 +12,6 @@ const MapSelectedDevice = ({ mapReady }) => {
   const previousId = usePrevious(currentId);
 
   const selectZoom = useAttributePreference('web.selectZoom', 10);
-  const mapFollow = useAttributePreference('mapFollow', false);
 
   const position = useSelector((state) => state.session.positions[currentId]);
 
@@ -21,16 +20,17 @@ const MapSelectedDevice = ({ mapReady }) => {
   useEffect(() => {
     if (!mapReady) return;
 
+    const hasSelectedDevice = Boolean(currentId);
     const positionChanged = position && (!previousPosition || position.latitude !== previousPosition.latitude || position.longitude !== previousPosition.longitude);
 
-    if ((currentId !== previousId || currentTime !== previousTime || (mapFollow && positionChanged)) && position) {
+    if ((currentId !== previousId || currentTime !== previousTime || (hasSelectedDevice && positionChanged)) && position) {
       map.easeTo({
         center: [position.longitude, position.latitude],
         zoom: Math.max(map.getZoom(), selectZoom),
         offset: [0, -dimensions.popupMapOffset / 2],
       });
     }
-  }, [currentId, previousId, currentTime, previousTime, mapFollow, position, selectZoom, mapReady]);
+  }, [currentId, previousId, currentTime, previousTime, position, selectZoom, mapReady]);
 
   return null;
 };
