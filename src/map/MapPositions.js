@@ -1,4 +1,4 @@
-import { useId, useCallback, useEffect } from 'react';
+import { useId, useCallback, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -15,6 +15,17 @@ import { useCatchCallback } from '../reactHelper';
 import { findFonts } from './core/mapUtil';
 import { updateStationaryState } from '../common/util/stationaryState';
 import { resolveDeviceReportColor } from '../common/util/reportColor';
+
+const POSITION_TRANSITION_DURATION_MS = 1100;
+
+const easeInOutQuad = (value) => (value < 0.5 ? 2 * value * value : 1 - ((-2 * value + 2) ** 2) / 2);
+
+const interpolateAngle = (from, to, progress) => {
+  const fromValue = Number.isFinite(from) ? from : 0;
+  const toValue = Number.isFinite(to) ? to : fromValue;
+  const shortestDelta = ((toValue - fromValue + 540) % 360) - 180;
+  return (fromValue + shortestDelta * progress + 360) % 360;
+};
 
 const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, selectedPosition, titleField }) => {
   const id = useId();
@@ -35,6 +46,13 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
   const devices = useSelector((state) => state.devices.items);
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const groups = useSelector((state) => state.groups.items);
+
+  const selectedRawRef = useRef(null);
+  const selectedAnimatedRef = useRef(null);
+  const selectedTransitionRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  const renderSourcesRef = useRef(() => {});
+  const selectedDeviceKeyRef = useRef(null);
 
   const mapCluster = useAttributePreference('mapCluster', true);
   const directionType = useAttributePreference('mapDirection', 'selected');
@@ -112,6 +130,13 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
       zoom,
     });
   }, [clusters]);
+
+  const stopSelectedAnimation = useCallback(() => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     map.addSource(id, {
@@ -395,6 +420,47 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
   useEffect(() => {
     let cancelled = false;
 
+    const renderSources = () => {
+      if (cancelled) {
+        return;
+      }
+
+      [id, selected].forEach((source) => {
+        map.getSource(source)?.setData({
+          type: 'FeatureCollection',
+          features: positions.filter((it) => devices.hasOwnProperty(it.deviceId))
+            .filter((it) => (source === id ? it.deviceId !== selectedDeviceId : it.deviceId === selectedDeviceId))
+            .map((position) => {
+              const isSelectedDevice = String(position.deviceId) === String(selectedDeviceId);
+              const animatedPosition = isSelectedDevice ? selectedAnimatedRef.current : null;
+              const mappedPosition = animatedPosition
+                ? {
+                  ...position,
+                  longitude: animatedPosition.longitude,
+                  latitude: animatedPosition.latitude,
+                  course: animatedPosition.course,
+                }
+                : position;
+              const feature = createFeature(devices, groups, mappedPosition, selectedPosition && selectedPosition.id);
+              if (!feature) {
+                return null;
+              }
+              return {
+                type: 'Feature',
+                geometry: {
+                  type: 'Point',
+                  coordinates: [mappedPosition.longitude, mappedPosition.latitude],
+                },
+                properties: feature,
+              };
+            })
+            .filter(Boolean),
+        });
+      });
+    };
+
+    renderSourcesRef.current = renderSources;
+
     const updateMapSources = async () => {
       const customColorValues = [...new Set(
         positions
@@ -423,28 +489,7 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
         return;
       }
 
-      [id, selected].forEach((source) => {
-        map.getSource(source)?.setData({
-          type: 'FeatureCollection',
-          features: positions.filter((it) => devices.hasOwnProperty(it.deviceId))
-            .filter((it) => (source === id ? it.deviceId !== selectedDeviceId : it.deviceId === selectedDeviceId))
-            .map((position) => {
-              const feature = createFeature(devices, groups, position, selectedPosition && selectedPosition.id);
-              if (!feature) {
-                return null;
-              }
-              return {
-                type: 'Feature',
-                geometry: {
-                  type: 'Point',
-                  coordinates: [position.longitude, position.latitude],
-                },
-                properties: feature,
-              };
-            })
-            .filter(Boolean),
-        });
-      });
+      renderSources();
     };
 
     updateMapSources();
@@ -453,6 +498,94 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
       cancelled = true;
     };
   }, [mapCluster, clusters, onMarkerClick, onClusterClick, devices, groups, positions, selectedPosition, selectedDeviceId, directionType, theme, id, selected, showStatus]);
+
+  useEffect(() => {
+    const currentSelectedDeviceKey = selectedDeviceId != null ? String(selectedDeviceId) : null;
+    if (selectedDeviceKeyRef.current !== currentSelectedDeviceKey) {
+      selectedDeviceKeyRef.current = currentSelectedDeviceKey;
+      selectedRawRef.current = null;
+      selectedAnimatedRef.current = null;
+      selectedTransitionRef.current = null;
+      stopSelectedAnimation();
+    }
+
+    const currentSelectedPosition = positions.find((item) => String(item.deviceId) === currentSelectedDeviceKey);
+    if (!selectedDeviceId || !currentSelectedPosition) {
+      selectedDeviceKeyRef.current = null;
+      selectedRawRef.current = null;
+      selectedAnimatedRef.current = null;
+      selectedTransitionRef.current = null;
+      stopSelectedAnimation();
+      renderSourcesRef.current();
+      return undefined;
+    }
+
+    const nextRawPosition = {
+      longitude: currentSelectedPosition.longitude,
+      latitude: currentSelectedPosition.latitude,
+      course: currentSelectedPosition.course,
+    };
+
+    const previousRawPosition = selectedRawRef.current;
+    const moved = previousRawPosition
+      && (previousRawPosition.longitude !== nextRawPosition.longitude
+        || previousRawPosition.latitude !== nextRawPosition.latitude);
+
+    if (!moved) {
+      selectedAnimatedRef.current = nextRawPosition;
+      selectedTransitionRef.current = null;
+      renderSourcesRef.current();
+      selectedRawRef.current = nextRawPosition;
+      return undefined;
+    }
+
+    const transitionStart = selectedAnimatedRef.current || previousRawPosition;
+    selectedTransitionRef.current = {
+      from: transitionStart,
+      to: nextRawPosition,
+      startTime: performance.now(),
+      duration: POSITION_TRANSITION_DURATION_MS,
+    };
+    selectedRawRef.current = nextRawPosition;
+
+    const animate = (frameTime) => {
+      const transition = selectedTransitionRef.current;
+      if (!transition) {
+        animationFrameRef.current = null;
+        return;
+      }
+
+      const rawProgress = Math.min(1, (frameTime - transition.startTime) / transition.duration);
+      const progress = easeInOutQuad(rawProgress);
+
+      selectedAnimatedRef.current = {
+        longitude: transition.from.longitude + ((transition.to.longitude - transition.from.longitude) * progress),
+        latitude: transition.from.latitude + ((transition.to.latitude - transition.from.latitude) * progress),
+        course: interpolateAngle(transition.from.course, transition.to.course, progress),
+      };
+
+      renderSourcesRef.current();
+
+      if (rawProgress < 1) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        selectedTransitionRef.current = null;
+        selectedAnimatedRef.current = transition.to;
+        renderSourcesRef.current();
+        animationFrameRef.current = null;
+      }
+    };
+
+    if (!animationFrameRef.current) {
+      animationFrameRef.current = requestAnimationFrame(animate);
+    }
+
+    return undefined;
+  }, [positions, selectedDeviceId, stopSelectedAnimation]);
+
+  useEffect(() => () => {
+    stopSelectedAnimation();
+  }, [stopSelectedAnimation]);
 
   return null;
 };
