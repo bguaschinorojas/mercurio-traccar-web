@@ -135,7 +135,14 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: 0,
     alignSelf: 'stretch',
     backgroundColor: 'inherit !important',
+    transition: 'none',
     '&:hover': {
+      backgroundColor: 'inherit !important',
+    },
+    '&:active': {
+      backgroundColor: 'inherit !important',
+    },
+    '&.Mui-focusVisible': {
       backgroundColor: 'inherit !important',
     },
   },
@@ -446,7 +453,6 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
         key={item.id}
         onClick={() => dispatch(devicesActions.selectId(item.id))}
         disabled={!admin && item.disabled}
-        selected={isSelected}
         className={classes.listItem}
       >
         <ListItemAvatar className={classes.avatarContainer}>
@@ -481,6 +487,8 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
       <IconButton
         size="small"
         className={classes.rowMenuButton}
+        disableRipple
+        disableFocusRipple
         onClick={handleMenuOpen}
         onMouseDown={(event) => event.stopPropagation()}
       >

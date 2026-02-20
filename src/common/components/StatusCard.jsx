@@ -1071,7 +1071,7 @@ const StatusCard = ({
   const positionItems = useAttributePreference('positionItems', 'address,altitude,accuracy,sat,ignition,batteryLevel');
   
   // Filtrar elementos que ya mostramos en secciones personalizadas
-  const excludedProperties = ['fixTime', 'speed', 'totalDistance', 'batteryLevel', 'altitude', 'latitude', 'accuracy', 'sat', 'satellites'];
+  const excludedProperties = ['fixTime', 'speed', 'totalDistance', 'batteryLevel', 'altitude', 'latitude', 'accuracy', 'sat', 'satellites', 'ignition'];
   const filteredItems = positionItems.split(',').filter((key) => !excludedProperties.includes(key));
   const idIndex = filteredItems.indexOf('id');
   const visibleItems = idIndex >= 0 ? filteredItems.slice(0, idIndex) : filteredItems;
