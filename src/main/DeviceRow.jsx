@@ -73,8 +73,11 @@ const useStyles = makeStyles()((theme) => ({
   neutral: {
     color: theme.palette.neutral.main,
   },
-  selected: {
+  deviceRowContainerSelected: {
     backgroundColor: theme.palette.action.selected,
+    '&:hover': {
+      backgroundColor: theme.palette.action.selected,
+    },
   },
   deviceMoving: {
     color: '#81C784',
@@ -106,9 +109,19 @@ const useStyles = makeStyles()((theme) => ({
     height: '72px',
     minHeight: '72px',
     borderTop: 'none',
-    borderBottom: '1px solid #f0f0f0',
+    borderBottom: 'none',
     flex: 1,
     minWidth: 0,
+    backgroundColor: 'transparent',
+    '&:hover': {
+      backgroundColor: 'transparent',
+    },
+    '&.Mui-selected': {
+      backgroundColor: 'transparent',
+    },
+    '&.Mui-selected:hover': {
+      backgroundColor: 'transparent',
+    },
   },
   rowMenuButton: {
     marginLeft: '4px',
@@ -117,6 +130,7 @@ const useStyles = makeStyles()((theme) => ({
     width: '30px',
     height: '30px',
     borderRadius: '8px',
+    backgroundColor: 'transparent',
     '&:hover': {
       backgroundColor: '#F3F4F6',
     },
@@ -207,6 +221,11 @@ const useStyles = makeStyles()((theme) => ({
     minHeight: '72px',
     display: 'flex',
     alignItems: 'center',
+    boxSizing: 'border-box',
+    borderBottom: '1px solid #f0f0f0',
+    '&:hover': {
+      backgroundColor: theme.palette.action.hover,
+    },
   },
 }));
 
@@ -225,6 +244,7 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
 
   const item = itemProp || data[index];
   const position = useSelector((state) => state.session.positions[item.id]);
+  const isSelected = selectedDeviceId === item.id;
 
   const devicePrimary = useAttributePreference('devicePrimary', 'name');
   const selectedReportColor = resolveDeviceReportColor(item, groups) || REPORT_COLOR_PALETTE[0];
@@ -387,13 +407,16 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
   };
 
   return (
-    <div style={{ ...style }} className={classes.deviceRowContainer}>
+    <div
+      style={{ ...style }}
+      className={`${classes.deviceRowContainer} ${isSelected ? classes.deviceRowContainerSelected : ''}`}
+    >
       <ListItemButton
         key={item.id}
         onClick={() => dispatch(devicesActions.selectId(item.id))}
         disabled={!admin && item.disabled}
-        selected={selectedDeviceId === item.id}
-        className={`${selectedDeviceId === item.id ? classes.selected : ''} ${classes.listItem}`}
+        selected={isSelected}
+        className={classes.listItem}
       >
         <ListItemAvatar className={classes.avatarContainer}>
           <Avatar className={`${classes.customAvatar} ${getDeviceIcon().avatarClass}`}>
