@@ -107,11 +107,21 @@ const getAttributeValue = (attributes = {}, keys = []) => {
 
 const normalizeDigits = (value) => (value == null ? '' : String(value).replace(/\D/g, ''));
 
-const getCarrierName = (attributes = {}) => {
-  const mncRaw = getAttributeValue(attributes, ['mnc', 'mobileNetworkCode']);
-  const mccRaw = getAttributeValue(attributes, ['mcc', 'mobileCountryCode']);
-  const plmnRaw = getAttributeValue(attributes, ['plmn']);
-  const operatorRaw = getAttributeValue(attributes, ['operator', 'carrier']);
+const getCarrierName = (attributes = {}, networkData = null) => {
+  const network = networkData || attributes?.network || {};
+  const firstCellTower = Array.isArray(network?.cellTowers) ? network.cellTowers[0] : null;
+
+  const mncRaw = getAttributeValue(attributes, ['mnc', 'mobileNetworkCode'])
+    ?? network?.mobileNetworkCode
+    ?? firstCellTower?.mobileNetworkCode;
+  const mccRaw = getAttributeValue(attributes, ['mcc', 'mobileCountryCode'])
+    ?? network?.mobileCountryCode
+    ?? firstCellTower?.mobileCountryCode;
+  const plmnRaw = getAttributeValue(attributes, ['plmn'])
+    ?? network?.plmn;
+  const operatorRaw = getAttributeValue(attributes, ['operator', 'carrier'])
+    ?? network?.operator
+    ?? network?.carrier;
 
   const mncDigitsRaw = normalizeDigits(mncRaw);
   const mccDigits = normalizeDigits(mccRaw);
@@ -266,7 +276,7 @@ const GPSRow = ({ position, device }) => {
   const satellitesCurrent = parseNumericValue(satellitesRaw);
   const gsmRaw = getAttributeValue(attributes, ['rssi', 'signal', 'csq', 'asu']);
   const gsmDbmCurrent = normalizeGsmDbm(gsmRaw);
-  const carrierCurrent = getCarrierName(attributes);
+  const carrierCurrent = getCarrierName(attributes, position?.network);
 
   useEffect(() => {
     if (!position || !deviceKey) {
@@ -1130,7 +1140,11 @@ const StatusCard = ({
                   <Table size="small" classes={{ root: classes.table }}>
                     <TableBody>
                       {visibleItems
-                        .filter((key) => key !== 'ignition')
+                        .filter((key) => {
+                          const normalizedKey = String(key || '').toLowerCase();
+                          const attributeName = positionAttributes[key]?.name;
+                          return normalizedKey !== 'ignition' && attributeName !== t('positionIgnition');
+                        })
                         .filter((key) => position.hasOwnProperty(key) || position.attributes.hasOwnProperty(key))
                         .map((key) => {
                         const rows = [];
