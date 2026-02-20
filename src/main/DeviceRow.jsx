@@ -19,7 +19,6 @@ import NearMeDisabledIcon from '@mui/icons-material/NearMeDisabled';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import ShareIcon from '@mui/icons-material/Share';
 import PaletteIcon from '@mui/icons-material/Palette';
-import FormatColorResetIcon from '@mui/icons-material/FormatColorReset';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useNavigate } from 'react-router-dom';
@@ -167,6 +166,22 @@ const useStyles = makeStyles()((theme) => ({
     gridTemplateColumns: 'repeat(6, 24px)',
     gap: '8px',
     padding: '8px 16px 14px 16px',
+  },
+  clearColorAction: {
+    width: '100%',
+    border: 'none',
+    backgroundColor: 'transparent',
+    color: '#6B7280',
+    fontSize: '12px',
+    fontWeight: 500,
+    lineHeight: 1.4,
+    textAlign: 'center',
+    padding: '2px 16px 4px',
+    cursor: 'pointer',
+  },
+  clearColorActionDisabled: {
+    color: '#B8BDC8',
+    cursor: 'default',
   },
   colorOption: {
     width: '24px',
@@ -517,15 +532,16 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
             {t('deviceChangeColor') || 'Cambiar color'}
           </Typography>
         </MenuItem>
-        <MenuItem
+        <Box
+          component="button"
+          type="button"
           onClick={handleClearColor}
+          onMouseDown={(event) => event.stopPropagation()}
           disabled={!hasDeviceCustomColor}
+          className={`${classes.clearColorAction} ${!hasDeviceCustomColor ? classes.clearColorActionDisabled : ''}`}
         >
-          <FormatColorResetIcon className={classes.menuItemActionIcon} />
-          <Typography className={classes.menuItemActionLabel}>
-            {t('deviceClearColor') || 'Borrar color'}
-          </Typography>
-        </MenuItem>
+          {t('deviceClearColor') || 'Borrar color'}
+        </Box>
         <Box className={classes.colorPalette}>
           {REPORT_COLOR_PALETTE.map((colorValue) => (
             <Box
