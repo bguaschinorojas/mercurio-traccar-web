@@ -24,7 +24,7 @@ const buildTrailSegments = (coordinates, maxOpacity) => {
   });
 };
 
-const ROUTE_TRANSITION_DURATION_MS = 1100;
+const ROUTE_TRANSITION_DURATION_MS = 1700;
 const easeInOutQuad = (value) => (value < 0.5 ? 2 * value * value : 1 - ((-2 * value + 2) ** 2) / 2);
 
 const MapLiveRoutes = () => {

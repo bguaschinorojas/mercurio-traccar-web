@@ -16,7 +16,7 @@ import { findFonts } from './core/mapUtil';
 import { updateStationaryState } from '../common/util/stationaryState';
 import { resolveDeviceReportColor } from '../common/util/reportColor';
 
-const POSITION_TRANSITION_DURATION_MS = 1100;
+const POSITION_TRANSITION_DURATION_MS = 1700;
 
 const easeInOutQuad = (value) => (value < 0.5 ? 2 * value * value : 1 - ((-2 * value + 2) ** 2) / 2);
 
