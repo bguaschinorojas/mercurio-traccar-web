@@ -40,7 +40,8 @@ const { reducer, actions } = createSlice({
       const safeLiveRoutesLimit = Number.isFinite(configuredLiveRoutesLimit) && configuredLiveRoutesLimit > 0
         ? configuredLiveRoutesLimit
         : 50;
-      const liveRoutesLimit = Math.max(2, Math.floor(safeLiveRoutesLimit / 2));
+      const currentLiveRoutesLimit = Math.max(2, Math.floor(safeLiveRoutesLimit / 2));
+      const liveRoutesLimit = Math.max(2, Math.floor(currentLiveRoutesLimit / 2));
       action.payload.forEach((position) => {
         state.positions[position.deviceId] = position;
         if (liveRoutes !== 'none') {
