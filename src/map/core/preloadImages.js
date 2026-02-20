@@ -67,6 +67,64 @@ export const mapIconKey = (category) => {
 };
 
 export const mapImages = {};
+const defaultColorKeys = ['info', 'success', 'error', 'neutral'];
+const customColorRegex = /^(custom-)?#?[0-9a-fA-F]{6}$/;
+const customColorPromises = new Map();
+const baseAssets = {
+  promise: null,
+  background: null,
+  icons: {},
+};
+
+const loadBaseAssets = async () => {
+  if (!baseAssets.promise) {
+    baseAssets.promise = (async () => {
+      const background = await loadImage(backgroundSvg);
+      const iconEntries = await Promise.all(Object.entries(mapIcons).map(async ([category, iconUrl]) => (
+        [category, await loadImage(iconUrl)]
+      )));
+      baseAssets.background = background;
+      baseAssets.icons = Object.fromEntries(iconEntries);
+      return baseAssets;
+    })();
+  }
+  return baseAssets.promise;
+};
+
+const renderIconsForColorKey = (background, icons, colorKey, colorValue) => {
+  Object.entries(icons).forEach(([category, iconImage]) => {
+    mapImages[`${category}-${colorKey}`] = prepareIcon(background, iconImage, colorValue);
+  });
+};
+
+export const normalizeCustomColorKey = (value) => {
+  if (!value || typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!customColorRegex.test(normalized)) {
+    return null;
+  }
+  const noPrefix = normalized.replace(/^custom-/, '').replace(/^#/, '');
+  return `custom-${noPrefix}`;
+};
+
+export const customColorFromKey = (key) => `#${key.replace('custom-', '')}`;
+
+export const ensureCustomColorIcons = async (value) => {
+  const colorKey = normalizeCustomColorKey(value);
+  if (!colorKey) {
+    return null;
+  }
+  if (!customColorPromises.has(colorKey)) {
+    customColorPromises.set(colorKey, (async () => {
+      const { background, icons } = await loadBaseAssets();
+      renderIconsForColorKey(background, icons, colorKey, customColorFromKey(colorKey));
+      return colorKey;
+    })());
+  }
+  return customColorPromises.get(colorKey);
+};
 
 const theme = createTheme({
   palette: {
@@ -75,18 +133,12 @@ const theme = createTheme({
 });
 
 export default async () => {
-  const background = await loadImage(backgroundSvg);
+  const { background, icons } = await loadBaseAssets();
   mapImages.background = await prepareIcon(background);
   mapImages['label-background'] = await prepareIcon(await loadImage(labelBackgroundSvg));
   mapImages.direction = await prepareIcon(await loadImage(directionSvg));
   mapImages.square = await prepareIcon(await loadImage(squareSvg));
-  await Promise.all(Object.keys(mapIcons).map(async (category) => {
-    const results = [];
-    ['info', 'success', 'error', 'neutral'].forEach((color) => {
-      results.push(loadImage(mapIcons[category]).then((icon) => {
-        mapImages[`${category}-${color}`] = prepareIcon(background, icon, theme.palette[color].main);
-      }));
-    });
-    await Promise.all(results);
-  }));
+  defaultColorKeys.forEach((colorKey) => {
+    renderIconsForColorKey(background, icons, colorKey, theme.palette[colorKey].main);
+  });
 };

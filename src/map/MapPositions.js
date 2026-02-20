@@ -4,7 +4,12 @@ import { useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { map } from './core/mapInstance';
 import { formatTime, getStatusColor } from '../common/util/formatter';
-import { mapIconKey } from './core/preloadImages';
+import {
+  mapIconKey,
+  mapImages,
+  normalizeCustomColorKey,
+  ensureCustomColorIcons,
+} from './core/preloadImages';
 import { useAttributePreference } from '../common/util/preferences';
 import { useCatchCallback } from '../reactHelper';
 import { findFonts } from './core/mapUtil';
@@ -55,6 +60,8 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
       speedKmh,
       fixTime: position.fixTime,
     });
+    const reportColor = device.attributes?.['web.reportColor'];
+    const customColorKey = normalizeCustomColorKey(reportColor);
 
     return {
       id: position.id,
@@ -62,9 +69,9 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
       name: device.name,
       fixTime: formatTime(position.fixTime, 'seconds'),
       category: mapIconKey(device.category),
-      color: showStatus ? position.attributes.color || getStatusColor(device.status) : 'neutral',
-      routeColor: device.attributes?.['web.reportColor'] || theme.palette.geometry.main,
-      labelColor: device.attributes?.['web.reportColor'] || theme.palette.geometry.main,
+      color: customColorKey || (showStatus ? position.attributes.color || getStatusColor(device.status) : 'neutral'),
+      routeColor: reportColor || theme.palette.geometry.main,
+      labelColor: reportColor || theme.palette.geometry.main,
       rotation: position.course,
       direction: showDirection,
       markerState,
@@ -381,22 +388,59 @@ const MapPositions = ({ positions, onMapClick, onMarkerClick, showStatus, select
   ]);
 
   useEffect(() => {
-    [id, selected].forEach((source) => {
-      map.getSource(source)?.setData({
-        type: 'FeatureCollection',
-        features: positions.filter((it) => devices.hasOwnProperty(it.deviceId))
-          .filter((it) => (source === id ? it.deviceId !== selectedDeviceId : it.deviceId === selectedDeviceId))
-          .map((position) => ({
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [position.longitude, position.latitude],
-            },
-            properties: createFeature(devices, position, selectedPosition && selectedPosition.id),
-          })),
+    let cancelled = false;
+
+    const updateMapSources = async () => {
+      const customColorValues = [...new Set(
+        positions
+          .filter((it) => devices.hasOwnProperty(it.deviceId))
+          .map((it) => devices[it.deviceId]?.attributes?.['web.reportColor'])
+          .filter(Boolean),
+      )];
+
+      await Promise.all(customColorValues.map(async (colorValue) => {
+        const colorKey = await ensureCustomColorIcons(colorValue);
+        if (!colorKey) {
+          return;
+        }
+        Object.entries(mapImages)
+          .filter(([imageKey]) => imageKey.endsWith(`-${colorKey}`))
+          .forEach(([imageKey, imageData]) => {
+            if (!map.hasImage(imageKey)) {
+              map.addImage(imageKey, imageData, {
+                pixelRatio: window.devicePixelRatio,
+              });
+            }
+          });
+      }));
+
+      if (cancelled) {
+        return;
+      }
+
+      [id, selected].forEach((source) => {
+        map.getSource(source)?.setData({
+          type: 'FeatureCollection',
+          features: positions.filter((it) => devices.hasOwnProperty(it.deviceId))
+            .filter((it) => (source === id ? it.deviceId !== selectedDeviceId : it.deviceId === selectedDeviceId))
+            .map((position) => ({
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: [position.longitude, position.latitude],
+              },
+              properties: createFeature(devices, position, selectedPosition && selectedPosition.id),
+            })),
+        });
       });
-    });
-  }, [mapCluster, clusters, onMarkerClick, onClusterClick, devices, positions, selectedPosition, selectedDeviceId, directionType, theme, id, selected]);
+    };
+
+    updateMapSources();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mapCluster, clusters, onMarkerClick, onClusterClick, devices, positions, selectedPosition, selectedDeviceId, directionType, theme, id, selected, showStatus]);
 
   return null;
 };

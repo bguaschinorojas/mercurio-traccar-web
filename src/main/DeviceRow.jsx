@@ -1,12 +1,22 @@
+import { useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { makeStyles } from 'tss-react/mui';
 import {
-  IconButton, Tooltip, Avatar, ListItemAvatar, ListItemText, ListItemButton,
+  IconButton,
+  Tooltip,
+  Avatar,
+  ListItemAvatar,
+  ListItemText,
+  ListItemButton,
   Typography,
+  Menu,
+  MenuItem,
+  Box,
 } from '@mui/material';
 import ErrorIcon from '@mui/icons-material/Error';
 import NearMeIcon from '@mui/icons-material/NearMe';
 import NearMeDisabledIcon from '@mui/icons-material/NearMeDisabled';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { devicesActions } from '../store';
@@ -17,6 +27,8 @@ import { useTranslation } from '../common/components/LocalizationProvider';
 import { useAdministrator } from '../common/util/permissions';
 import { useAttributePreference } from '../common/util/preferences';
 import { updateStationaryState } from '../common/util/stationaryState';
+import fetchOrThrow from '../common/util/fetchOrThrow';
+import { useCatchCallback } from '../reactHelper';
 
 dayjs.extend(relativeTime);
 
@@ -34,6 +46,20 @@ const formatStoppedDuration = (durationMs) => {
     return `${hours}h ${minutes}m`;
   }
   return `${minutes}m`;
+};
+
+const normalizeColor = (value, fallback = '#2563eb') => {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+  const trimmed = value.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) {
+    return trimmed.toLowerCase();
+  }
+  if (/^[0-9a-fA-F]{6}$/.test(trimmed)) {
+    return `#${trimmed.toLowerCase()}`;
+  }
+  return fallback;
 };
 
 const useStyles = makeStyles()((theme) => ({
@@ -58,7 +84,7 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: theme.palette.action.selected,
   },
   deviceMoving: {
-    color: '#81C784', // Verde pastel
+    color: '#81C784',
   },
   parkedLetter: {
     color: '#64B5F6',
@@ -67,36 +93,68 @@ const useStyles = makeStyles()((theme) => ({
     lineHeight: 1,
   },
   deviceOffline: {
-    color: '#E57373', // Rojo suave
+    color: '#E57373',
   },
   customAvatar: {
-    backgroundColor: 'transparent', // Quitar fondo
-    border: '2px solid', // Agregar borde
-    width: '32px', // Hacer más pequeño
-    height: '32px', // Hacer más pequeño
+    backgroundColor: 'transparent',
+    border: '2px solid',
+    width: '32px',
+    height: '32px',
   },
   avatarContainer: {
-    minWidth: '50px', // Ancho mínimo del contenedor
-    paddingLeft: '12px', // Espacio a la izquierda
-    paddingRight: '12px', // Espacio a la derecha del ícono
+    minWidth: '50px',
+    paddingLeft: '12px',
+    paddingRight: '12px',
   },
   listItem: {
-    padding: '0px', // Sin padding para eliminar espacios
-    margin: '0px', // Sin margin
+    padding: '0px',
+    margin: '0px',
     boxSizing: 'border-box',
-    height: '72px', // Altura fija
-    minHeight: '72px', // Altura mínima fija
+    height: '72px',
+    minHeight: '72px',
     borderTop: 'none',
     borderBottom: '1px solid #f0f0f0',
+    flex: 1,
+    minWidth: 0,
+  },
+  rowMenuButton: {
+    marginLeft: '6px',
+    marginRight: '2px',
+    color: '#6B7280',
+    width: '30px',
+    height: '30px',
+    borderRadius: '8px',
+    '&:hover': {
+      backgroundColor: '#F3F4F6',
+    },
+  },
+  menuItemLabel: {
+    fontSize: '13px',
+    fontWeight: 500,
+    color: theme.palette.text.primary,
+  },
+  colorSwatch: {
+    width: '14px',
+    height: '14px',
+    borderRadius: '4px',
+    border: `1px solid ${theme.palette.divider}`,
+    marginLeft: '10px',
+  },
+  hiddenColorInput: {
+    position: 'absolute',
+    opacity: 0,
+    width: 0,
+    height: 0,
+    pointerEvents: 'none',
   },
   avatarMoving: {
-    borderColor: '#81C784', // Borde verde pastel
+    borderColor: '#81C784',
   },
   avatarParked: {
-    borderColor: '#64B5F6', // Borde azul suave
+    borderColor: '#64B5F6',
   },
   avatarOffline: {
-    borderColor: '#E57373', // Borde rojo suave
+    borderColor: '#E57373',
   },
   primaryText: {
     fontSize: '12px',
@@ -113,18 +171,18 @@ const useStyles = makeStyles()((theme) => ({
     border: '1px solid',
   },
   speedIconMoving: {
-    color: '#81C784', // Verde pastel
-    borderColor: '#81C784', // Borde verde
+    color: '#81C784',
+    borderColor: '#81C784',
   },
   speedIconParked: {
-    color: '#64B5F6', // Azul suave
-    borderColor: '#64B5F6', // Borde azul
+    color: '#64B5F6',
+    borderColor: '#64B5F6',
   },
   speedIconParkedSimple: {
     fontSize: '12px',
     marginRight: '4px',
     verticalAlign: 'middle',
-    color: '#64B5F6', // Azul suave - sin cuadrado
+    color: '#64B5F6',
   },
   speedText: {
     fontSize: '10px',
@@ -133,10 +191,10 @@ const useStyles = makeStyles()((theme) => ({
     fontSize: '10px',
   },
   deviceRowContainer: {
-    height: '72px', // Altura fija del contenedor
-    minHeight: '72px', // Altura mínima
+    height: '72px',
+    minHeight: '72px',
     display: 'flex',
-    alignItems: 'center', // Centrar verticalmente
+    alignItems: 'center',
   },
 }));
 
@@ -144,6 +202,8 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
   const { classes } = useStyles();
   const dispatch = useDispatch();
   const t = useTranslation();
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const colorInputRef = useRef(null);
 
   const admin = useAdministrator();
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
@@ -152,7 +212,43 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
   const position = useSelector((state) => state.session.positions[item.id]);
 
   const devicePrimary = useAttributePreference('devicePrimary', 'name');
-  const deviceSecondary = useAttributePreference('deviceSecondary', '');
+  const selectedReportColor = normalizeColor(item.attributes?.['web.reportColor']);
+  const colorMenuOpen = Boolean(menuAnchorEl);
+
+  const handleMenuOpen = (event) => {
+    event.stopPropagation();
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = (event) => {
+    event?.stopPropagation();
+    setMenuAnchorEl(null);
+  };
+
+  const saveDeviceColor = useCatchCallback(async (colorValue) => {
+    const normalized = normalizeColor(colorValue);
+    const updatedDevice = {
+      ...item,
+      attributes: {
+        ...(item.attributes || {}),
+        'web.reportColor': normalized,
+      },
+    };
+    const response = await fetchOrThrow(`/api/devices/${item.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updatedDevice),
+    });
+    dispatch(devicesActions.update([await response.json()]));
+  }, [dispatch, item]);
+
+  const handleColorChange = (event) => {
+    event.stopPropagation();
+    saveDeviceColor(event.target.value);
+    setMenuAnchorEl(null);
+  };
 
   const secondaryText = () => {
     const parseTimestamp = (value) => {
@@ -173,7 +269,7 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
     if (!hasReportedSignal) {
       return (
         <span className={`${classes.error} ${classes.statusText}`}>
-          Fuera de línea
+          Fuera de linea
         </span>
       );
     }
@@ -181,7 +277,7 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
     if (isLongOffline) {
       return (
         <span className={`${classes.error} ${classes.speedText}`}>
-          Fuera de línea: {formatStoppedDuration(offlineDurationMs)}
+          Fuera de linea: {formatStoppedDuration(offlineDurationMs)}
         </span>
       );
     }
@@ -193,10 +289,9 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
       status = dayjs(item.lastUpdate).fromNow();
     }
 
-    // Agregar velocidad si está disponible
     let speedElement = null;
     if (isOnline && position && position.speed !== undefined && position.speed !== null) {
-      const speedKmh = Math.round(position.speed * 1.852); // Convertir de nudos a km/h
+      const speedKmh = Math.round(position.speed * 1.852);
       const { markerState, stoppedSince } = updateStationaryState({
         deviceId: item.id,
         latitude: position.latitude,
@@ -237,43 +332,46 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
   };
 
   const getDeviceIcon = () => {
-    // Si no hay posición, consideramos que está offline
     if (!position) {
       return {
         icon: <NearMeDisabledIcon className={classes.deviceOffline} />,
-        avatarClass: classes.avatarOffline
+        avatarClass: classes.avatarOffline,
       };
     }
 
-    // Verificar si está online basado en el estado del dispositivo
     const isOnline = item.status === 'online';
-    
+
     if (!isOnline) {
       return {
         icon: <NearMeDisabledIcon className={classes.deviceOffline} />,
-        avatarClass: classes.avatarOffline
+        avatarClass: classes.avatarOffline,
       };
     }
 
-    // Si está online, verificar si está en movimiento
-    // Consideramos que está en movimiento si tiene velocidad > 0
     const isMoving = position.speed && position.speed > 0;
-    
+
     if (isMoving) {
       return {
         icon: <NearMeIcon className={classes.deviceMoving} />,
-        avatarClass: classes.avatarMoving
-      };
-    } else {
-      return {
-        icon: <span className={classes.parkedLetter}>E</span>,
-        avatarClass: classes.avatarParked
+        avatarClass: classes.avatarMoving,
       };
     }
+    return {
+      icon: <span className={classes.parkedLetter}>E</span>,
+      avatarClass: classes.avatarParked,
+    };
   };
 
   return (
     <div style={{ ...style }} className={classes.deviceRowContainer}>
+      <IconButton
+        size="small"
+        className={classes.rowMenuButton}
+        onClick={handleMenuOpen}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <MoreVertIcon fontSize="small" />
+      </IconButton>
       <ListItemButton
         key={item.id}
         onClick={() => dispatch(devicesActions.selectId(item.id))}
@@ -310,6 +408,43 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
           </>
         )}
       </ListItemButton>
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={colorMenuOpen}
+        onClose={handleMenuClose}
+        onClick={(event) => event.stopPropagation()}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+      >
+        <MenuItem
+          onClick={(event) => {
+            event.stopPropagation();
+            colorInputRef.current?.click();
+          }}
+        >
+          <Typography className={classes.menuItemLabel}>
+            {t('deviceChangeColor') || 'Cambiar color'}
+          </Typography>
+          <Box
+            className={classes.colorSwatch}
+            sx={{ backgroundColor: selectedReportColor }}
+          />
+          <input
+            ref={colorInputRef}
+            type="color"
+            value={selectedReportColor}
+            onChange={handleColorChange}
+            className={classes.hiddenColorInput}
+            aria-label={t('deviceChangeColor') || 'Cambiar color'}
+          />
+        </MenuItem>
+      </Menu>
     </div>
   );
 };
