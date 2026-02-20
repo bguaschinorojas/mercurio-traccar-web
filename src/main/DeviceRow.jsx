@@ -18,6 +18,8 @@ import NearMeIcon from '@mui/icons-material/NearMe';
 import NearMeDisabledIcon from '@mui/icons-material/NearMeDisabled';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import ShareIcon from '@mui/icons-material/Share';
+import PaletteIcon from '@mui/icons-material/Palette';
+import FormatColorResetIcon from '@mui/icons-material/FormatColorReset';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useNavigate } from 'react-router-dom';
@@ -247,6 +249,7 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
   const item = itemProp || data[index];
   const position = useSelector((state) => state.session.positions[item.id]);
   const isSelected = selectedDeviceId === item.id;
+  const hasDeviceCustomColor = Boolean(normalizeReportColor(item.attributes?.['web.reportColor']));
 
   const devicePrimary = useAttributePreference('devicePrimary', 'name');
   const selectedReportColor = resolveDeviceReportColor(item, groups) || REPORT_COLOR_PALETTE[0];
@@ -287,6 +290,32 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
   const handleColorSelect = (event, colorValue) => {
     event.stopPropagation();
     saveDeviceColor(colorValue);
+    setMenuAnchorEl(null);
+  };
+
+  const clearDeviceColor = useCatchCallback(async () => {
+    const updatedAttributes = { ...(item.attributes || {}) };
+    delete updatedAttributes['web.reportColor'];
+
+    const updatedDevice = {
+      ...item,
+      attributes: updatedAttributes,
+    };
+
+    const response = await fetchOrThrow(`/api/devices/${item.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updatedDevice),
+    });
+
+    dispatch(devicesActions.update([await response.json()]));
+  }, [dispatch, item]);
+
+  const handleClearColor = (event) => {
+    event.stopPropagation();
+    clearDeviceColor();
     setMenuAnchorEl(null);
   };
 
@@ -475,8 +504,18 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
         }}
       >
         <MenuItem disableRipple disableTouchRipple>
-          <Typography className={classes.menuItemLabel}>
+          <PaletteIcon className={classes.menuItemActionIcon} />
+          <Typography className={classes.menuItemActionLabel}>
             {t('deviceChangeColor') || 'Cambiar color'}
+          </Typography>
+        </MenuItem>
+        <MenuItem
+          onClick={handleClearColor}
+          disabled={!hasDeviceCustomColor}
+        >
+          <FormatColorResetIcon className={classes.menuItemActionIcon} />
+          <Typography className={classes.menuItemActionLabel}>
+            {t('deviceClearColor') || 'Borrar color'}
           </Typography>
         </MenuItem>
         <Box className={classes.colorPalette}>
