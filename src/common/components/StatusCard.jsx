@@ -634,12 +634,10 @@ const OdometerHoursRow = ({ position, device }) => {
   const [loading, setLoading] = useState(false);
   
   // Usar directamente los valores de position y device como PositionValue
-  const odometerReal = position?.attributes?.odometer ?? null;
   const totalDistance = position?.attributes?.totalDistance || device?.attributes?.totalDistance || 0;
   const hours = position?.attributes?.hours || device?.attributes?.hours || 0;
   
   // Formatear distancia (convertir de metros a kilómetros)
-  const odometerKm = odometerReal != null ? (odometerReal / 1000).toFixed(2) : null;
   const distanceKm = totalDistance ? (totalDistance / 1000).toFixed(2) : '0.00';
   
   // Formatear horas (convertir milisegundos a horas y minutos)
@@ -779,33 +777,18 @@ const OdometerHoursRow = ({ position, device }) => {
         }} />
         
         <Typography variant="body2" sx={{ fontWeight: 600, marginBottom: '8px', fontSize: '13px' }}>
-          Odómetro / Recorrido / Horas
+          Odómetro / Horas
         </Typography>
         
-        {/* Línea 1: Odómetro real */}
+        {/* Línea 1: Odómetro */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, marginBottom: '4px' }}>
           <SpeedIcon sx={{ fontSize: 16, color: '#666' }} />
           <Typography variant="body2" sx={{ fontSize: '10px', color: '#999', flex: 1 }}>
-            Odómetro real
+            Odómetro
           </Typography>
         </Box>
         
-        {/* Valor del Odómetro real */}
-        <Box sx={{ display: 'flex', alignItems: 'center', marginLeft: '24px', marginBottom: '4px' }}>
-          <Typography variant="body2" sx={{ fontSize: '12px', fontWeight: 400, color: '#000', flex: 1 }}>
-            {odometerKm != null ? `${odometerKm} Km` : 'N/A'}
-          </Typography>
-        </Box>
-
-        {/* Línea 2: Recorrido total */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, marginBottom: '4px' }}>
-          <SpeedIcon sx={{ fontSize: 16, color: '#666' }} />
-          <Typography variant="body2" sx={{ fontSize: '10px', color: '#999', flex: 1 }}>
-            Recorrido total
-          </Typography>
-        </Box>
-        
-        {/* Valor del Recorrido total */}
+        {/* Valor del Odómetro */}
         <Box sx={{ display: 'flex', alignItems: 'center', marginLeft: '24px', marginBottom: '4px' }}>
           {editingOdometer ? (
             <>
@@ -863,7 +846,7 @@ const OdometerHoursRow = ({ position, device }) => {
           )}
         </Box>
         
-        {/* Línea 3: Horas trabajadas */}
+        {/* Línea 2: Horas trabajadas */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, marginBottom: '4px' }}>
           <AccessTimeIcon sx={{ fontSize: 16, color: '#666' }} />
           <Typography variant="body2" sx={{ fontSize: '10px', color: '#999', flex: 1 }}>
