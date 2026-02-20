@@ -17,8 +17,10 @@ import ErrorIcon from '@mui/icons-material/Error';
 import NearMeIcon from '@mui/icons-material/NearMe';
 import NearMeDisabledIcon from '@mui/icons-material/NearMeDisabled';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import ShareIcon from '@mui/icons-material/Share';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { useNavigate } from 'react-router-dom';
 import { devicesActions } from '../store';
 import {
   formatAlarm, formatStatus, getStatusColor,
@@ -125,6 +127,16 @@ const useStyles = makeStyles()((theme) => ({
     color: theme.palette.text.primary,
     cursor: 'default',
   },
+  menuItemActionLabel: {
+    fontSize: '13px',
+    fontWeight: 500,
+    color: theme.palette.text.primary,
+  },
+  menuItemActionIcon: {
+    color: '#6B7280',
+    marginRight: '10px',
+    fontSize: '18px',
+  },
   colorPalette: {
     display: 'grid',
     gridTemplateColumns: 'repeat(6, 24px)',
@@ -201,12 +213,15 @@ const useStyles = makeStyles()((theme) => ({
 const DeviceRow = ({ data, index, style, item: itemProp }) => {
   const { classes } = useStyles();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const t = useTranslation();
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
 
   const admin = useAdministrator();
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const groups = useSelector((state) => state.groups.items);
+  const shareDisabled = useSelector((state) => state.session.server.attributes.disableShare);
+  const user = useSelector((state) => state.session.user);
 
   const item = itemProp || data[index];
   const position = useSelector((state) => state.session.positions[item.id]);
@@ -251,6 +266,12 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
     event.stopPropagation();
     saveDeviceColor(colorValue);
     setMenuAnchorEl(null);
+  };
+
+  const handleShareDevice = (event) => {
+    event.stopPropagation();
+    setMenuAnchorEl(null);
+    navigate(`/settings/device/${item.id}/share`);
   };
 
   const secondaryText = () => {
@@ -446,6 +467,15 @@ const DeviceRow = ({ data, index, style, item: itemProp }) => {
             />
           ))}
         </Box>
+        <MenuItem
+          onClick={handleShareDevice}
+          disabled={!position || shareDisabled || user?.temporary}
+        >
+          <ShareIcon className={classes.menuItemActionIcon} />
+          <Typography className={classes.menuItemActionLabel}>
+            {t('deviceShare') || 'Compartir dispositivo'}
+          </Typography>
+        </MenuItem>
       </Menu>
     </div>
   );
