@@ -416,8 +416,6 @@ const ViajesReportPage = () => {
     maxSpeedValue: speedFromKnots(item.maxSpeed || 0, speedUnit),
   })), [items, distanceUnit, speedUnit]);
 
-  const hasMaxSpeedData = useMemo(() => processedItems.some((item) => item.maxSpeedValue > 0), [processedItems]);
-
   const groupedItems = useMemo(() => {
     const groups = [];
     const groupsMap = new Map();
@@ -821,14 +819,14 @@ const ViajesReportPage = () => {
                       <TableCell>Distancia recorrida</TableCell>
                       <TableCell>Duracion del viaje</TableCell>
                       <TableCell>Velocidad media</TableCell>
-                      {hasMaxSpeedData && <TableCell>Velocidad maxima</TableCell>}
+                      <TableCell>Velocidad maxima</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {groupedItems.map((group) => (
                       <Fragment key={group.day}>
                         <TableRow>
-                          <TableCell className={classes.daySeparatorCell} colSpan={hasMaxSpeedData ? 6 : 5}>
+                          <TableCell className={classes.daySeparatorCell} colSpan={6}>
                             <Typography className={classes.daySeparatorLabel}>
                               {`${group.day} (cantidad de viajes: ${group.trips.length})`}
                             </Typography>
@@ -851,7 +849,7 @@ const ViajesReportPage = () => {
                               <TableCell className={classes.valueText}>{distance}</TableCell>
                               <TableCell className={classes.valueText}>{duration}</TableCell>
                               <TableCell className={classes.valueText}>{averageSpeed}</TableCell>
-                              {hasMaxSpeedData && <TableCell className={classes.valueText}>{maxSpeed}</TableCell>}
+                              <TableCell className={classes.valueText}>{maxSpeed}</TableCell>
                             </TableRow>
                           );
                         })}
@@ -863,14 +861,12 @@ const ViajesReportPage = () => {
                         <TableCell className={classes.valueText}>{`${totals.totalDistance.toFixed(2)} km/h`}</TableCell>
                         <TableCell className={classes.valueText}>{formatDurationHms(totals.totalDuration)}</TableCell>
                         <TableCell className={classes.valueText}>{`${Math.round(totals.totalAverageSpeed)} km/h`}</TableCell>
-                        {hasMaxSpeedData && (
-                          <TableCell className={classes.valueText}>{`${Math.round(totals.totalMaxSpeed)} km/h`}</TableCell>
-                        )}
+                        <TableCell className={classes.valueText}>{`${Math.round(totals.totalMaxSpeed)} km/h`}</TableCell>
                       </TableRow>
                     )}
                     {!processedItems.length && (
                       <TableRow>
-                        <TableCell colSpan={hasMaxSpeedData ? 6 : 5}>
+                        <TableCell colSpan={6}>
                           <Typography variant="body2" color="text.secondary">
                             No hay datos para el rango seleccionado
                           </Typography>
