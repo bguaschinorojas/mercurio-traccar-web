@@ -66,6 +66,7 @@ const EventPage = () => {
       const positions = await response.json();
       if (positions.length > 0) {
         setPosition(positions[0]);
+        setShowCard(true);
       }
     }
   }, [event]);
