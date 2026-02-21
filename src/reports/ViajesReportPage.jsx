@@ -843,8 +843,8 @@ const ViajesReportPage = () => {
                         {group.trips.map((item) => {
                           const startLocation = resolveLocation(item.startAddress, item.startLat, item.startLon, resolvedAddresses);
                           const endLocation = resolveLocation(item.endAddress, item.endLat, item.endLon, resolvedAddresses);
-                          const startLabel = `${formatTime(item.startTime, 'time')} - ${startLocation}`;
-                          const endLabel = `${formatTime(item.endTime, 'time')} - ${endLocation}`;
+                          const startLabel = `${formatTime(item.startTime)} - ${startLocation}`;
+                          const endLabel = `${formatTime(item.endTime)} - ${endLocation}`;
                           const distance = `${item.distanceValue.toFixed(2)} km/h`;
                           const duration = formatDurationHms(item.durationValue);
                           const averageSpeed = `${Math.round(item.averageSpeedValue)} km/h`;
