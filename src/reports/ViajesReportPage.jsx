@@ -30,7 +30,6 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import BottomMenu from '../common/components/BottomMenu';
 import ReportsMenu from './components/ReportsMenu';
 import fetchOrThrow from '../common/util/fetchOrThrow';
-import { formatTime } from '../common/util/formatter';
 import { distanceFromMeters, speedFromKnots } from '../common/util/converter';
 import { useAttributePreference } from '../common/util/preferences';
 
@@ -356,6 +355,8 @@ const formatDurationHms = (durationMs) => {
   const ss = String(seconds).padStart(2, '0');
   return `${hh}:${mm}:${ss}`;
 };
+
+const formatDateTime24h = (value) => (value ? dayjs(value).format('DD/MM/YYYY HH:mm:ss') : '');
 
 const getCoordinateKey = (latitude, longitude) => {
   const parsedLatitude = Number(latitude);
@@ -843,8 +844,8 @@ const ViajesReportPage = () => {
                         {group.trips.map((item) => {
                           const startLocation = resolveLocation(item.startAddress, item.startLat, item.startLon, resolvedAddresses);
                           const endLocation = resolveLocation(item.endAddress, item.endLat, item.endLon, resolvedAddresses);
-                          const startLabel = `${formatTime(item.startTime)} - ${startLocation}`;
-                          const endLabel = `${formatTime(item.endTime)} - ${endLocation}`;
+                          const startLabel = `${formatDateTime24h(item.startTime)} - ${startLocation}`;
+                          const endLabel = `${formatDateTime24h(item.endTime)} - ${endLocation}`;
                           const distance = `${item.distanceValue.toFixed(2)} km/h`;
                           const duration = formatDurationHms(item.durationValue);
                           const averageSpeed = `${Math.round(item.averageSpeedValue)} km/h`;
