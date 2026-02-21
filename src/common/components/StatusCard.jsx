@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import maplibregl from 'maplibre-gl';
 import {
   Card,
   CardContent,
@@ -60,6 +61,7 @@ import { useCatch, useCatchCallback } from '../../reactHelper';
 import { useAttributePreference } from '../util/preferences';
 import { formatNotificationTitle } from '../util/formatter';
 import fetchOrThrow from '../util/fetchOrThrow';
+import { map } from '../../map/core/mapInstance';
 
 // Función para convertir grados a direcciones cardinales
 const getCardinalDirection = (course) => {
@@ -78,6 +80,8 @@ const ignitionCache = new Map();
 const gpsTelemetryCache = new Map();
 const batteryLevelCache = new Map();
 const alertEventTypes = ['alarm', 'geofenceEnter', 'geofenceExit'];
+let alertPreviewMarker = null;
+let alertPreviewPopup = null;
 
 const formatAlertDateTime = (value) => {
   if (!value) {
@@ -91,6 +95,105 @@ const formatAlertDateTime = (value) => {
     minute: '2-digit',
     hour12: false,
   }).replace(',', '');
+};
+
+const clearAlertPreview = () => {
+  if (alertPreviewPopup) {
+    alertPreviewPopup.remove();
+    alertPreviewPopup = null;
+  }
+  if (alertPreviewMarker) {
+    alertPreviewMarker.remove();
+    alertPreviewMarker = null;
+  }
+};
+
+const formatAlertLabel = (t, event, geofences = {}) => {
+  const baseTitle = formatNotificationTitle(t, {
+    type: event.type,
+    attributes: {
+      alarms: event.attributes?.alarm,
+    },
+  });
+  const geofenceName = event.geofenceId ? geofences[event.geofenceId]?.name : '';
+  return geofenceName ? `${baseTitle}: ${geofenceName}` : baseTitle;
+};
+
+const createAlertPopupContent = (event, t, geofences = {}) => {
+  const container = document.createElement('div');
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.gap = '4px';
+  container.style.minWidth = '160px';
+  container.style.maxWidth = '260px';
+
+  const title = document.createElement('div');
+  title.style.fontSize = '13px';
+  title.style.fontWeight = '600';
+  title.style.color = '#111';
+  title.textContent = formatAlertLabel(t, event, geofences);
+
+  const date = document.createElement('div');
+  date.style.fontSize = '11px';
+  date.style.color = '#777';
+  date.textContent = formatAlertDateTime(event.eventTime);
+
+  container.appendChild(title);
+  container.appendChild(date);
+  return container;
+};
+
+const focusAlertOnMap = ({ event, position, t, geofences }) => {
+  const latitude = Number(position?.latitude);
+  const longitude = Number(position?.longitude);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return false;
+  }
+
+  const renderOnMap = () => {
+    clearAlertPreview();
+
+    const popupContent = createAlertPopupContent(event, t, geofences);
+    alertPreviewPopup = new maplibregl.Popup({
+      closeButton: true,
+      closeOnClick: true,
+      offset: 20,
+      maxWidth: '280px',
+    })
+      .setLngLat([longitude, latitude])
+      .setDOMContent(popupContent);
+
+    alertPreviewMarker = new maplibregl.Marker({
+      color: '#f57c00',
+    })
+      .setLngLat([longitude, latitude])
+      .setPopup(alertPreviewPopup)
+      .addTo(map);
+
+    alertPreviewPopup.addTo(map);
+    map.easeTo({
+      center: [longitude, latitude],
+      zoom: Math.max(map.getZoom(), 14),
+      duration: 700,
+    });
+
+    alertPreviewPopup.on('close', () => {
+      if (alertPreviewMarker) {
+        alertPreviewMarker.remove();
+        alertPreviewMarker = null;
+      }
+      alertPreviewPopup = null;
+    });
+  };
+
+  if (!map.getStyle()) {
+    map.once('load', renderOnMap);
+    return true;
+  }
+
+  renderOnMap();
+  return true;
 };
 
 const carrierByMnc = {
@@ -605,17 +708,6 @@ const RecentAlertsRow = ({ deviceId, onAlertClick }) => {
     };
   }, [deviceId]);
 
-  const formatAlertTitle = (event) => {
-    const baseTitle = formatNotificationTitle(t, {
-      type: event.type,
-      attributes: {
-        alarms: event.attributes?.alarm,
-      },
-    });
-    const geofenceName = event.geofenceId ? geofences[event.geofenceId]?.name : '';
-    return geofenceName ? `${baseTitle}: ${geofenceName}` : baseTitle;
-  };
-
   if (!deviceId) return null;
 
   return (
@@ -671,7 +763,7 @@ const RecentAlertsRow = ({ deviceId, onAlertClick }) => {
                   <IconButton
                     size="small"
                     onClick={() => onAlertClick(alert)}
-                    disabled={!alert.id}
+                    disabled={!alert.positionId}
                     sx={{ padding: '2px' }}
                   >
                     <LocationSearchingIcon sx={{ fontSize: 16, color: '#666' }} />
@@ -688,7 +780,7 @@ const RecentAlertsRow = ({ deviceId, onAlertClick }) => {
                 marginLeft: '24px',
               }}
             >
-              {formatAlertTitle(alert)}
+              {formatAlertLabel(t, alert, geofences)}
             </Typography>
           </Box>
         ))}
@@ -1299,6 +1391,7 @@ const StatusCard = ({
   const deviceReadonly = useDeviceReadonly();
 
   const device = useSelector((state) => state.devices.items[deviceId]);
+  const geofences = useSelector((state) => state.geofences.items);
   const shareDisabled = useSelector((state) => state.session.server.attributes.disableShare);
   const user = useSelector((state) => state.session.user);
 
@@ -1319,11 +1412,29 @@ const StatusCard = ({
   const [removing, setRemoving] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
-  const handleAlertOpen = useCallback((event) => {
-    if (event?.id) {
-      navigate(`/event/${event.id}`);
+  const handleAlertOpen = useCatchCallback(async (event) => {
+    if (!event?.positionId) {
+      return;
     }
-  }, [navigate]);
+
+    const response = await fetchOrThrow(`/api/positions?id=${event.positionId}`);
+    const positions = await response.json();
+    if (!positions.length) {
+      return;
+    }
+
+    const alertPosition = positions[0];
+    if (alertPosition?.deviceId) {
+      dispatch(devicesActions.selectId(alertPosition.deviceId));
+    }
+
+    focusAlertOnMap({
+      event,
+      position: alertPosition,
+      t,
+      geofences,
+    });
+  }, [dispatch, geofences, t]);
 
   const handleRemove = useCatch(async (removed) => {
     if (removed) {
