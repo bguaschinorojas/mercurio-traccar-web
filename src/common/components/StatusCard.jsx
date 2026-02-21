@@ -1424,9 +1424,6 @@ const StatusCard = ({
     }
 
     const alertPosition = positions[0];
-    if (alertPosition?.deviceId) {
-      dispatch(devicesActions.selectId(alertPosition.deviceId));
-    }
 
     focusAlertOnMap({
       event,
