@@ -407,14 +407,22 @@ const ViajesReportPage = () => {
     resolvedAddressesRef.current = resolvedAddresses;
   }, [resolvedAddresses]);
 
-  const processedItems = useMemo(() => items.map((item) => ({
-    ...item,
-    dayLabel: item.startTime ? dayjs(item.startTime).format('DD/MM/YYYY') : 'Sin fecha',
-    distanceValue: distanceFromMeters(item.distance || 0, distanceUnit),
-    durationValue: Number(item.duration) || 0,
-    averageSpeedValue: speedFromKnots(item.averageSpeed || 0, speedUnit),
-    maxSpeedValue: speedFromKnots(item.maxSpeed || 0, speedUnit),
-  })), [items, distanceUnit, speedUnit]);
+  const processedItems = useMemo(() => {
+    const orderedItems = [...items].sort((a, b) => {
+      const aTime = a.startTime ? dayjs(a.startTime).valueOf() : Number.POSITIVE_INFINITY;
+      const bTime = b.startTime ? dayjs(b.startTime).valueOf() : Number.POSITIVE_INFINITY;
+      return aTime - bTime;
+    });
+
+    return orderedItems.map((item) => ({
+      ...item,
+      dayLabel: item.startTime ? dayjs(item.startTime).format('DD/MM/YYYY') : 'Sin fecha',
+      distanceValue: distanceFromMeters(item.distance || 0, distanceUnit),
+      durationValue: Number(item.duration) || 0,
+      averageSpeedValue: speedFromKnots(item.averageSpeed || 0, speedUnit),
+      maxSpeedValue: speedFromKnots(item.maxSpeed || 0, speedUnit),
+    }));
+  }, [items, distanceUnit, speedUnit]);
 
   const groupedItems = useMemo(() => {
     const groups = [];
