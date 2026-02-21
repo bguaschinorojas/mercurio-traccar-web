@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
@@ -47,6 +47,8 @@ import DialpadIcon from '@mui/icons-material/Dialpad';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 
 import { useTranslation } from './LocalizationProvider';
 import RemoveDialog from './RemoveDialog';
@@ -56,6 +58,7 @@ import usePositionAttributes from '../attributes/usePositionAttributes';
 import { devicesActions } from '../../store';
 import { useCatch, useCatchCallback } from '../../reactHelper';
 import { useAttributePreference } from '../util/preferences';
+import { formatNotificationTitle } from '../util/formatter';
 import fetchOrThrow from '../util/fetchOrThrow';
 
 // Función para convertir grados a direcciones cardinales
@@ -74,6 +77,21 @@ const getCardinalDirection = (course) => {
 const ignitionCache = new Map();
 const gpsTelemetryCache = new Map();
 const batteryLevelCache = new Map();
+const alertEventTypes = ['alarm', 'geofenceEnter', 'geofenceExit'];
+
+const formatAlertDateTime = (value) => {
+  if (!value) {
+    return 'Sin fecha';
+  }
+  return new Date(value).toLocaleString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).replace(',', '');
+};
 
 const carrierByMnc = {
   '01': 'Entel',
@@ -517,6 +535,163 @@ const GPSRow = ({ position, device }) => {
             </Typography>
           </>
         )}
+      </TableCell>
+    </TableRow>
+  );
+};
+
+const RecentAlertsRow = ({ deviceId, onAlertClick }) => {
+  const { classes } = useStyles({ desktopPadding: 0 });
+  const t = useTranslation();
+  const geofences = useSelector((state) => state.geofences.items);
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadAlerts = async () => {
+      if (!deviceId) {
+        if (active) {
+          setAlerts([]);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const now = new Date();
+      const rangesInDays = [30, 90, 180, 365];
+      let latestAlerts = [];
+
+      setLoading(true);
+
+      for (const days of rangesInDays) {
+        const from = new Date(now.getTime() - (days * 24 * 60 * 60 * 1000));
+        const query = new URLSearchParams({
+          deviceId: String(deviceId),
+          from: from.toISOString(),
+          to: now.toISOString(),
+        });
+        alertEventTypes.forEach((type) => query.append('type', type));
+
+        try {
+          const response = await fetchOrThrow(`/api/reports/events?${query.toString()}`, {
+            headers: { Accept: 'application/json' },
+          });
+          const items = await response.json();
+          latestAlerts = items
+            .filter((item) => item?.eventTime)
+            .sort((a, b) => new Date(b.eventTime) - new Date(a.eventTime))
+            .slice(0, 3);
+
+          if (latestAlerts.length >= 3 || days === rangesInDays[rangesInDays.length - 1]) {
+            break;
+          }
+        } catch (error) {
+          break;
+        }
+      }
+
+      if (active) {
+        setAlerts(latestAlerts);
+        setLoading(false);
+      }
+    };
+
+    loadAlerts();
+
+    return () => {
+      active = false;
+    };
+  }, [deviceId]);
+
+  const formatAlertTitle = (event) => {
+    const baseTitle = formatNotificationTitle(t, {
+      type: event.type,
+      attributes: {
+        alarms: event.attributes?.alarm,
+      },
+    });
+    const geofenceName = event.geofenceId ? geofences[event.geofenceId]?.name : '';
+    return geofenceName ? `${baseTitle}: ${geofenceName}` : baseTitle;
+  };
+
+  if (!deviceId) return null;
+
+  return (
+    <TableRow>
+      <TableCell className={classes.cell} colSpan={2} sx={{ padding: '8px 0' }}>
+        <Box
+          sx={{
+            borderTop: '1px solid #f0f0f0',
+            marginBottom: '12px',
+            marginTop: '4px',
+          }}
+        />
+
+        <Typography variant="body2" sx={{ fontWeight: 600, marginBottom: '8px', fontSize: '13px' }}>
+          Ultimas alertas
+        </Typography>
+
+        {loading && (
+          <Typography
+            variant="body2"
+            sx={{
+              fontSize: '12px',
+              color: '#999',
+              marginLeft: '24px',
+            }}
+          >
+            Cargando alertas...
+          </Typography>
+        )}
+
+        {!loading && alerts.length === 0 && (
+          <Typography
+            variant="body2"
+            sx={{
+              fontSize: '12px',
+              color: '#999',
+              marginLeft: '24px',
+            }}
+          >
+            Sin alertas recientes
+          </Typography>
+        )}
+
+        {!loading && alerts.map((alert) => (
+          <Box key={alert.id || `${alert.type}-${alert.eventTime}`} sx={{ marginBottom: '8px' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, marginBottom: '4px' }}>
+              <WarningAmberIcon sx={{ fontSize: 16, color: '#666' }} />
+              <Typography variant="body2" sx={{ fontSize: '10px', color: '#999', flex: 1 }}>
+                {formatAlertDateTime(alert.eventTime)}
+              </Typography>
+              <Tooltip title="Ver alerta">
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => onAlertClick(alert)}
+                    disabled={!alert.id}
+                    sx={{ padding: '2px' }}
+                  >
+                    <LocationSearchingIcon sx={{ fontSize: 16, color: '#666' }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
+            <Typography
+              variant="body2"
+              sx={{
+                fontSize: '12px',
+                fontWeight: 400,
+                color: '#000',
+                marginLeft: '24px',
+              }}
+            >
+              {formatAlertTitle(alert)}
+            </Typography>
+          </Box>
+        ))}
       </TableCell>
     </TableRow>
   );
@@ -1144,6 +1319,12 @@ const StatusCard = ({
   const [removing, setRemoving] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
+  const handleAlertOpen = useCallback((event) => {
+    if (event?.id) {
+      navigate(`/event/${event.id}`);
+    }
+  }, [navigate]);
+
   const handleRemove = useCatch(async (removed) => {
     if (removed) {
       const response = await fetchOrThrow('/api/devices');
@@ -1247,6 +1428,13 @@ const StatusCard = ({
                           );
                           rows.push(
                             <GPSRow key="gps-info" position={position} device={device} />
+                          );
+                          rows.push(
+                            <RecentAlertsRow
+                              key="recent-alerts"
+                              deviceId={device?.id || position?.deviceId}
+                              onAlertClick={handleAlertOpen}
+                            />
                           );
                           rows.push(
                             <IdentifierRow key="identifier" device={device} />
