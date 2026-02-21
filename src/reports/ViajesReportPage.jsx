@@ -399,7 +399,13 @@ const ViajesReportPage = () => {
   const [items, setItems] = useState([]);
   const [reportGenerated, setReportGenerated] = useState(false);
   const [resolvedAddresses, setResolvedAddresses] = useState({});
+  const resolvedAddressesRef = useRef({});
   const inFlightAddressKeysRef = useRef(new Set());
+  const geocodeAbortControllersRef = useRef(new Set());
+
+  useEffect(() => {
+    resolvedAddressesRef.current = resolvedAddresses;
+  }, [resolvedAddresses]);
 
   const processedItems = useMemo(() => items.map((item) => ({
     ...item,
@@ -464,7 +470,7 @@ const ViajesReportPage = () => {
       if (!coordinateKey) {
         return;
       }
-      if (resolvedAddresses[coordinateKey] || inFlightAddressKeysRef.current.has(coordinateKey)) {
+      if (resolvedAddressesRef.current[coordinateKey] || inFlightAddressKeysRef.current.has(coordinateKey)) {
         return;
       }
       missingPoints.push({ coordinateKey, latitude: Number(latitude), longitude: Number(longitude) });
@@ -494,6 +500,7 @@ const ViajesReportPage = () => {
 
     const fetchSingleAddress = async ({ coordinateKey, latitude, longitude }) => {
       const abortController = new AbortController();
+      geocodeAbortControllersRef.current.add(abortController);
       const timeoutId = window.setTimeout(() => {
         abortController.abort();
       }, GEOCODE_REQUEST_TIMEOUT_MS);
@@ -507,20 +514,23 @@ const ViajesReportPage = () => {
         if (!active) {
           return;
         }
+        const nextAddress = addressText || 'Direccion no disponible';
         setResolvedAddresses((prev) => ({
           ...prev,
-          [coordinateKey]: addressText || 'Direccion no disponible',
+          [coordinateKey]: nextAddress,
         }));
       } catch (e) {
         if (!active) {
           return;
         }
+        const fallbackAddress = 'Direccion no disponible';
         setResolvedAddresses((prev) => ({
           ...prev,
-          [coordinateKey]: prev[coordinateKey] || 'Direccion no disponible',
+          [coordinateKey]: prev[coordinateKey] || fallbackAddress,
         }));
       } finally {
         window.clearTimeout(timeoutId);
+        geocodeAbortControllersRef.current.delete(abortController);
         inFlightAddressKeysRef.current.delete(coordinateKey);
       }
     };
@@ -545,8 +555,10 @@ const ViajesReportPage = () => {
 
     return () => {
       active = false;
+      geocodeAbortControllersRef.current.forEach((controller) => controller.abort());
+      geocodeAbortControllersRef.current.clear();
     };
-  }, [geocoderEnabled, processedItems, resolvedAddresses]);
+  }, [geocoderEnabled, processedItems]);
 
   const handleCancel = () => {
     setError('');
@@ -578,6 +590,11 @@ const ViajesReportPage = () => {
 
     setError('');
     setLoading(true);
+    resolvedAddressesRef.current = {};
+    setResolvedAddresses({});
+    inFlightAddressKeysRef.current.clear();
+    geocodeAbortControllersRef.current.forEach((controller) => controller.abort());
+    geocodeAbortControllersRef.current.clear();
 
     try {
       const response = await fetchOrThrow(`/api/reports/trips?${query.toString()}`, {
